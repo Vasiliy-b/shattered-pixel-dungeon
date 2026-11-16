@@ -171,10 +171,11 @@ public class AndroidLauncher extends AndroidApplication {
 
 		Button.longClick = ViewConfiguration.getLongPressTimeout()/1000f;
 		
-		//adb shell am start -n <package>/.AndroidLauncher --ez ai_agent true [--es ai_pref full]
+		//adb shell am start -n <package>/.AndroidLauncher --ez ai_agent true [--es ai_pref full] [--es ai_mode model]
 		// lets on-device Gemini Nano play. Must be set before the first scene is created.
 		if (getIntent() != null && getIntent().getBooleanExtra("ai_agent", false)) {
 			Agent.journalDir = new java.io.File(getFilesDir(), "spd-agent").getAbsolutePath();
+			if (getIntent().getStringExtra("ai_mode") != null) Agent.mode = getIntent().getStringExtra("ai_mode");
 			Agent.brain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
 			System.setProperty("spd.agent.autostart", "true");
 		}

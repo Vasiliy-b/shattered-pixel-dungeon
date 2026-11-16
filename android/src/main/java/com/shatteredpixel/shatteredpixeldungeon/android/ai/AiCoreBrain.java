@@ -55,6 +55,9 @@ public class AiCoreBrain implements Agent.Brain {
 
 	private final GenerativeModelFutures model;
 	private final SystemInstruction rules = new SystemInstruction(Agent.rules());
+	//in model mode the model reasons before it answers; a small output limit makes
+	// AICore fail the whole request (COMPUTE_ERROR) instead of cutting the reasoning short
+	private final boolean reasoning = "model".equals(Agent.mode);
 
 	public AiCoreBrain( boolean fullModel ) {
 		ModelConfig.Builder modelConfig = new ModelConfig.Builder();
@@ -72,7 +75,8 @@ public class AiCoreBrain implements Agent.Brain {
 						rules, new TextPart(observation));
 				request.setTemperature(0.2f);
 				request.setTopK(10);
-				request.setMaxOutputTokens(16);
+				request.setMaxOutputTokens(reasoning ? 4096 : 16);
+				request.setEnableThinking(reasoning);
 				GenerateContentResponse response = model.generateContent(request.build()).get();
 				reply.accept(response.getCandidates().isEmpty()
 						? "" : response.getCandidates().get(0).getText());
