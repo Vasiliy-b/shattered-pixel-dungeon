@@ -101,6 +101,8 @@ public class Agent {
 		if (Dungeon.hero != null && !Dungeon.hero.isAlive()) {
 			if (!deathLogged) journal( "\"event\":\"dead\"" );
 			deathLogged = true;
+			//the next run has new levels
+			AgentObservation.deadEnds.clear();
 			return;
 		}
 		if (!AgentObservation.inputReady()) return;
@@ -110,6 +112,13 @@ public class Agent {
 		String clock = Dungeon.depth + ":" + Actor.now();
 		idle = clock.equals( lastClock ) ? idle + 1 : 0;
 		lastClock = clock;
+		//an explore target that got the hero nowhere is dropped, so explore tries the next one
+		String stale = idle > 0 ? lastAction : null;
+		if ("explore".equals( stale )) {
+			AgentObservation.deadEnds.add( Dungeon.depth * 100000 + AgentObservation.lastFrontier );
+			stale = null;
+		}
+
 		//only moves are recorded: resting or searching in one place is not pacing
 		Integer place = Dungeon.depth * 100000 + Dungeon.hero.pos;
 		if (positions.isEmpty() || !place.equals( positions.get( positions.size() - 1 ) )) positions.add( place );
@@ -123,7 +132,7 @@ public class Agent {
 
 		final String observation;
 		synchronized (Agent.class) {
-			observation = AgentObservation.render( history, idle > 0 ? lastAction : null, pacing, log );
+			observation = AgentObservation.render( history, stale, pacing, log );
 			log.clear();
 		}
 		turn++;

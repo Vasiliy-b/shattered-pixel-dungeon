@@ -32,6 +32,8 @@ import com.watabou.noosa.Game;
 import com.watabou.utils.PathFinder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Locale;
 
@@ -57,6 +59,10 @@ public class AgentObservation {
 	}
 
 	private static final int PIRANHA_RANGE = 6;
+
+	//explore targets that the walk could not make progress towards, as depth * 100000 + cell
+	static final Set<Integer> deadEnds = new HashSet<>();
+	static int lastFrontier = -1;
 
 	//the action a hard rule chose in the last render(), null when the choice was left to the model
 	static String ruleAction;
@@ -280,6 +286,7 @@ public class AgentObservation {
 		List<Integer> candidates = new ArrayList<>();
 		for (int i = 0; i < walkable.length; i++) {
 			if (!walkable[i] || i == from || distance[i] == Integer.MAX_VALUE) continue;
+			if (deadEnds.contains( Dungeon.depth * 100000 + i )) continue;
 			for (int n : PathFinder.NEIGHBOURS4) {
 				int c = i + n;
 				if (c >= 0 && c < walkable.length && !known( level, c )) {

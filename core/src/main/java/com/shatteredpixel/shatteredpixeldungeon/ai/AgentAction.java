@@ -94,6 +94,7 @@ public class AgentAction {
 				//the walk stops by itself when the hero notices a new enemy, like any tap-to-move
 				List<Integer> frontiers = AgentObservation.nearestFrontiers( level, pos );
 				if (frontiers.isEmpty()) return "error: nothing left to explore";
+				AgentObservation.lastFrontier = frontiers.get( 0 );
 				GameScene.handleCell( frontiers.get( 0 ) );
 				return "ok";
 			case "attack":
