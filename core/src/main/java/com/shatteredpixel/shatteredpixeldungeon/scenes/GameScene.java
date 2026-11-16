@@ -923,6 +923,8 @@ public class GameScene extends PixelScene {
 			log.newLine();
 		}
 
+		com.shatteredpixel.shatteredpixeldungeon.ai.Agent.tick();
+
 		if (updateTags){
 			tagAttack = attack.active;
 			tagLoot = loot.visible;
@@ -1463,6 +1465,17 @@ public class GameScene extends PixelScene {
 		}
 
 		return false;
+	}
+
+	//topmost open window or null, used by the AI agent bridge
+	public static Window topWindow(){
+		Window result = null;
+		if (scene != null) {
+			for (Gizmo g : scene.members){
+				if (g instanceof Window) result = (Window) g;
+			}
+		}
+		return result;
 	}
 
 	public static boolean interfaceBlockingHero(){

@@ -7,3 +7,7 @@ dependencies {
     api project(':SPD-classes')
     implementation project(':services')
 }
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}

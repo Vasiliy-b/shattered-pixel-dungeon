@@ -63,6 +63,8 @@ public class WelcomeScene extends PixelScene {
 	public void create() {
 		super.create();
 
+		com.shatteredpixel.shatteredpixeldungeon.ai.Agent.onTitle();
+
 		final int previousVersion = SPDSettings.version();
 
 		if (!triedCleaningTemp && FileUtils.cleanTempFiles()){

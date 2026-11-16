@@ -276,7 +276,9 @@ public class InterlevelScene extends PixelScene {
 		align(loadingText);
 		add(loadingText);
 
-		if (mode == Mode.DESCEND && lastRegion <= 5 && !DeviceCompat.isDebug()){
+		if (mode == Mode.DESCEND && lastRegion <= 5 && !DeviceCompat.isDebug()
+				//the story page waits for a button press, which an AI agent cannot give
+				&& com.shatteredpixel.shatteredpixeldungeon.ai.Agent.brain == null){
 			if (Dungeon.hero == null || (loadingDepth > Statistics.deepestFloor && loadingDepth % 5 == 1)){
 					storyMessage = PixelScene.renderTextBlock(Document.INTROS.pageBody(region), 6);
 					storyMessage.maxWidth( PixelScene.landscape() ? 180 : 125);
