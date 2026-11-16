@@ -23,7 +23,9 @@ import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.watabou.noosa.Game;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -64,7 +66,11 @@ public class Agent {
 	private static boolean waiting;
 	private static boolean deathLogged;
 	private static String lastClock;
-	private static String lastAction;
+	//the last action and the last one before it that was different
+	private static String lastAction, prevAction;
+	//action -> the turn its ban ends
+	private static final Map<String, Integer> bans = new HashMap<>();
+	private static final int PACING_BAN = 5;
 	private static int idle;
 	private static int turn;
 
@@ -113,10 +119,12 @@ public class Agent {
 		idle = clock.equals( lastClock ) ? idle + 1 : 0;
 		lastClock = clock;
 		//an explore target that got the hero nowhere is dropped, so explore tries the next one
-		String stale = idle > 0 ? lastAction : null;
-		if ("explore".equals( stale )) {
+		String why = null;
+		if (idle > 0 && "explore".equals( lastAction )) {
 			AgentObservation.deadEnds.add( Dungeon.depth * 100000 + AgentObservation.lastFrontier );
-			stale = null;
+		} else if (idle > 0 && lastAction != null) {
+			bans.put( lastAction, turn + 1 );
+			why = lastAction + " changed nothing, do something else";
 		}
 
 		//only moves are recorded: resting or searching in one place is not pacing
@@ -127,12 +135,19 @@ public class Agent {
 		int places = new HashSet<>( positions ).size();
 		boolean pacing = idle == 0 && positions.size() == POSITIONS && places <= 3
 				&& AgentObservation.nearestEnemy( Dungeon.level, Dungeon.hero.pos ) == null;
-		//warn once, then give the walk another ten moves
-		if (pacing) positions.clear();
+		if (pacing) {
+			//both halves of the loop are off the table for a while, then the walk gets another ten moves
+			bans.put( lastAction, turn + PACING_BAN );
+			if (prevAction != null) bans.put( prevAction, turn + PACING_BAN );
+			why = "you keep moving back and forth, do something else";
+			positions.clear();
+		}
+		final int now = turn;
+		bans.values().removeIf( until -> until <= now );
 
 		final String observation;
 		synchronized (Agent.class) {
-			observation = AgentObservation.render( history, stale, pacing, log );
+			observation = AgentObservation.render( history, bans.keySet(), why, log );
 			log.clear();
 		}
 		turn++;
@@ -180,6 +195,7 @@ public class Agent {
 			if (forced) action = GameScene.topWindow() != null ? "back" : "wait";
 			else if (!valid) action = AgentAction.fallback();
 			result = AgentAction.apply( action );
+			if (!action.equals( lastAction )) prevAction = lastAction;
 			lastAction = action;
 
 			history.add( (valid ? action : "invalid reply, played " + action) + " -> " + result );

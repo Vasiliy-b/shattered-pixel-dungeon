@@ -99,7 +99,7 @@ public class AgentAction {
 				return "ok";
 			case "attack":
 				Mob enemy = AgentObservation.nearestEnemy( level, pos );
-				if (enemy == null) return "error: no enemy in sight";
+				if (enemy == null) return "error: no enemy to fight";
 				GameScene.handleCell( enemy.pos );
 				return "ok";
 			case "loot":

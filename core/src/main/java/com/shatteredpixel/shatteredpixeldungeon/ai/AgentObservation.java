@@ -67,9 +67,9 @@ public class AgentObservation {
 	//the action a hard rule chose in the last render(), null when the choice was left to the model
 	static String ruleAction;
 
-	//call on the render thread, only when inputReady(). stale is the action that just changed
-	//nothing (or null), pacing is true when the hero walks in circles; both come from the Agent loop.
-	public static String render( List<String> history, String stale, boolean pacing, List<String> log ) {
+	//call on the render thread, only when inputReady(). banned holds the actions the Agent loop has
+	//ruled out for this turn, why is its reason when the ban is new (or null).
+	public static String render( List<String> history, Set<String> banned, String why, List<String> log ) {
 		Level level = Dungeon.level;
 		Hero hero = Dungeon.hero;
 		int[] steps = stepsFrom( level, hero.pos );
@@ -115,7 +115,7 @@ public class AgentObservation {
 		int exit = stairsDown( level );
 		sb.append( "exits: " ).append( exit == -1 ? "stairs down not found yet"
 				: "stairs down known, " + where( level, hero.pos, exit, steps )
-				+ ("descend".equals( stale ) ? "" : " -> descend") ).append( '\n' );
+				+ (banned.contains( "descend" ) ? "" : " -> descend") ).append( '\n' );
 
 		List<Integer> frontiers = nearestFrontiers( level, hero.pos );
 		if (frontiers.isEmpty()) {
@@ -124,7 +124,7 @@ public class AgentObservation {
 			List<String> places = new ArrayList<>();
 			for (int cell : frontiers) places.add( where( level, hero.pos, cell, steps ) );
 			sb.append( "explore: unexplored at " ).append( String.join( "; ", places ) )
-					.append( "explore".equals( stale ) ? "\n" : " -> explore\n" );
+					.append( banned.contains( "explore" ) ? "\n" : " -> explore\n" );
 		}
 
 		List<String> items = new ArrayList<>();
@@ -133,13 +133,18 @@ public class AgentObservation {
 			items.add( heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
 		}
 		sb.append( "items: " ).append( items.isEmpty() ? "none" : String.join( "; ", items )
-				+ ("loot".equals( stale ) ? "" : " -> loot") ).append( '\n' );
+				+ (banned.contains( "loot" ) ? "" : " -> loot") ).append( '\n' );
 
-		boolean canAttack = nearest != null && !avoidFight && !"attack".equals( stale );
+		boolean adjacent = nearest != null && level.adjacent( hero.pos, nearest.pos );
+		//a ban never stops the hero from hitting back
+		boolean canAttack = nearest != null && !avoidFight && (adjacent || !banned.contains( "attack" ));
+		boolean here = !heaps.isEmpty() && heaps.get( 0 ).pos == hero.pos;
 		List<String> enemies = new ArrayList<>(), others = new ArrayList<>();
 		for (Mob mob : visibleMobs( level )) {
 			String line = mob.name() + " hp " + mob.HP + "/" + mob.HT + ", " + where( level, hero.pos, mob.pos, steps );
-			if (mob.alignment == Char.Alignment.ENEMY) enemies.add( line + (canAttack ? " -> attack" : "") );
+			if (mob.alignment == Char.Alignment.ENEMY) {
+				enemies.add( line + (!threat( level, hero.pos, mob ) ? " (not hunting you)" : canAttack ? " -> attack" : "") );
+			}
 			else others.add( line + (mob.alignment == Char.Alignment.ALLY ? " (ally)" : " (neutral)") );
 		}
 		int visibleEnemies = enemies.size();
@@ -155,9 +160,9 @@ public class AgentObservation {
 		Hunger hunger = hero.buff( Hunger.class );
 		//resting heals slowly and costs food, so only while not hungry
 		boolean rest = hero.HP * 2 < hero.HT && visibleEnemies == 0
-				&& (hunger == null || hunger.hunger() < Hunger.HUNGRY) && !"wait".equals( stale );
+				&& (hunger == null || hunger.hunger() < Hunger.HUNGRY) && !banned.contains( "wait" );
 		boolean hungry = hunger != null && hunger.hunger() >= Hunger.HUNGRY;
-		boolean canEat = hungry && hero.belongings.getItem( Food.class ) != null && !"eat".equals( stale );
+		boolean canEat = hungry && hero.belongings.getItem( Food.class ) != null && !banned.contains( "eat" );
 		if (hunger != null && hunger.isStarving()) hints.add( "starving, HP is dropping" );
 		else if (hungry) hints.add( "hungry" );
 		for (String hint : hints) sb.append( "hint: " ).append( hint ).append( '\n' );
@@ -167,22 +172,22 @@ public class AgentObservation {
 		else if (avoidFight) reason = "HP is low, stay away from the enemy";
 		else if (canEat && visibleEnemies == 0) reason = "you are hungry and have food";
 		else if (rest) reason = "HP is low and no enemy is in sight, rest";
-		else if (stale != null) reason = stale + " changed nothing, do something else";
-		else if (pacing) reason = "you keep moving back and forth, do something else";
+		else if (here && !adjacent && !banned.contains( "loot" )) reason = "an item is under your feet";
+		else if (why != null) reason = why;
 		else if (frontiers.isEmpty() && exit == -1 && !canAttack && heaps.isEmpty()) reason = "nothing left to explore, a door may be hidden";
 		else if (frontiers.isEmpty() && exit != -1 && !canAttack && heaps.isEmpty()) reason = "level explored";
 
 		ruleAction = null;
 		if (reason != null) {
-			boolean adjacent = nearest != null && level.adjacent( hero.pos, nearest.pos );
-			if (canEat && visibleEnemies == 0) ruleAction = "eat";
+			if (here && !adjacent && !banned.contains( "loot" )) ruleAction = "loot";
+			else if (canEat && visibleEnemies == 0) ruleAction = "eat";
 			else if (rest) ruleAction = "wait";
 			else if (canAttack && adjacent) ruleAction = "attack";
-			else if (lowHp && exit != -1 && !"descend".equals( stale )) ruleAction = "descend";
-			else if (!heaps.isEmpty() && !"loot".equals( stale )) ruleAction = "loot";
-			else if (!frontiers.isEmpty() && !"explore".equals( stale ) && !pacing) ruleAction = "explore";
-			else if (exit != -1 && !"descend".equals( stale )) ruleAction = "descend";
-			else if (!"search".equals( stale ) && !avoidFight) ruleAction = "search";
+			else if (lowHp && exit != -1 && !banned.contains( "descend" )) ruleAction = "descend";
+			else if (!heaps.isEmpty() && !banned.contains( "loot" )) ruleAction = "loot";
+			else if (!frontiers.isEmpty() && !banned.contains( "explore" )) ruleAction = "explore";
+			else if (exit != -1 && !banned.contains( "descend" )) ruleAction = "descend";
+			else if (!banned.contains( "search" ) && !avoidFight) ruleAction = "search";
 			else ruleAction = "wait";
 			sb.append( "hint: " ).append( reason ).append( " -> " ).append( ruleAction ).append( '\n' );
 		}
@@ -199,13 +204,18 @@ public class AgentObservation {
 		return mobs;
 	}
 
-	//nearest visible hostile mob, or null
+	//worth a fight now: next to the hero, or hunting it. Walking up to a sleeping or wandering mob
+	//loses sight of it and the walk back and forth never ends. Piranhas cannot leave the water.
+	static boolean threat( Level level, int from, Mob mob ) {
+		if (level.adjacent( from, mob.pos )) return true;
+		return mob.state == mob.HUNTING && !(mob instanceof Piranha);
+	}
+
+	//nearest visible hostile mob that is a threat, or null
 	static Mob nearestEnemy( Level level, int from ) {
 		Mob best = null;
 		for (Mob mob : visibleMobs( level )) {
-			if (mob.alignment != Char.Alignment.ENEMY) continue;
-			//piranhas cannot leave the water: fight one only when it is already biting
-			if (mob instanceof Piranha && !level.adjacent( from, mob.pos )) continue;
+			if (mob.alignment != Char.Alignment.ENEMY || !threat( level, from, mob )) continue;
 			if (best == null || level.distance( from, mob.pos ) < level.distance( from, best.pos )) best = mob;
 		}
 		return best;
