@@ -65,7 +65,8 @@ public class AiCoreBrain implements Agent.Brain {
 	private SystemInstruction rules;
 	//in model mode the model reasons before it answers; a small output limit makes
 	// AICore fail the whole request (COMPUTE_ERROR) instead of cutting the reasoning short
-	private final boolean reasoning = "model".equals(Agent.mode);
+	//can be switched off (--ez ai_think false) to see the model answer without thinking
+	public boolean reasoning = "model".equals(Agent.mode);
 
 	public AiCoreBrain( boolean fullModel ) {
 		ModelConfig.Builder modelConfig = new ModelConfig.Builder();
@@ -85,7 +86,7 @@ public class AiCoreBrain implements Agent.Brain {
 						rules, new TextPart(observation));
 				request.setTemperature(0.2f);
 				request.setTopK(10);
-				request.setMaxOutputTokens(reasoning ? 4096 : 16);
+				request.setMaxOutputTokens("model".equals(Agent.mode) ? 4096 : 16);
 				request.setEnableThinking(reasoning);
 				GenerateContentResponse response = model.generateContent(request.build()).get();
 				String text = response.getCandidates().isEmpty()

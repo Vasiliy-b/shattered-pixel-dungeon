@@ -183,6 +183,7 @@ public class AndroidLauncher extends AndroidApplication {
 			//--es ai_guide short|full|none picks the play guide appended to the rules
 			if (getIntent().getStringExtra("ai_guide") != null) Agent.guideSize = getIntent().getStringExtra("ai_guide");
 			aiBrain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
+			if (!getIntent().getBooleanExtra("ai_think", true)) aiBrain.reasoning = false;
 			Agent.brain = aiBrain;
 			System.setProperty("spd.agent.autostart", "true");
 		}
