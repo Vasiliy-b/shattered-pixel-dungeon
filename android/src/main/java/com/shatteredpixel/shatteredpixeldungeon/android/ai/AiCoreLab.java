@@ -37,6 +37,11 @@ import com.google.mlkit.genai.prompt.SystemInstruction;
 import com.google.mlkit.genai.prompt.TextPart;
 import com.google.mlkit.genai.prompt.java.GenerativeModelFutures;
 
+import com.google.mlkit.genai.common.FunctionCall;
+import com.google.mlkit.genai.schema.tools.FunctionDeclaration;
+import com.google.mlkit.genai.schema.tools.FunctionSchema;
+import com.google.mlkit.genai.schema.tools.FunctionType;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -45,6 +50,10 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 //Runs prompt experiments against on-device Gemini Nano without rebuilding the game:
@@ -155,6 +164,28 @@ public class AiCoreLab implements Runnable {
 		b.setTopK(spec.optInt("top_k", 10));
 		b.setMaxOutputTokens(spec.optInt("max_tokens", 16));
 		b.setEnableThinking(spec.optBoolean("thinking", false));
+		//"tool_actions": ["explore", ...] offers one function, act(reason, action, item, target),
+		// whose action argument is limited to these values
+		JSONArray actions = spec.optJSONArray("tool_actions");
+		if (actions != null) {
+			List<String> values = new ArrayList<>();
+			for (int i = 0; i < actions.length(); i++) values.add(actions.optString(i));
+			Map<String, FunctionSchema> properties = new LinkedHashMap<>();
+			properties.put("reason", new FunctionSchema(FunctionType.STRING, "one short sentence: why this action"));
+			properties.put("action", new FunctionSchema(FunctionType.STRING, "the action to take",
+					new LinkedHashMap<String, FunctionSchema>(), new ArrayList<String>(), values));
+			properties.put("item", new FunctionSchema(FunctionType.INTEGER,
+					"inventory or floor item number, for use, equip, throw and loot"));
+			properties.put("target", new FunctionSchema(FunctionType.INTEGER,
+					"inventory item number a scroll of upgrade is read on"));
+			List<String> required = new ArrayList<>();
+			required.add("reason");
+			required.add("action");
+			List<FunctionDeclaration> tools = new ArrayList<>();
+			tools.add(new FunctionDeclaration("act", "Take one action in the game.",
+					new FunctionSchema(FunctionType.OBJECT, "the action", properties, required)));
+			b.setTools(tools);
+		}
 		return b.build();
 	}
 
