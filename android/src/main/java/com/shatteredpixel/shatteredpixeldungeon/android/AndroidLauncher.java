@@ -178,6 +178,8 @@ public class AndroidLauncher extends AndroidApplication {
 			if (getIntent().getStringExtra("ai_mode") != null) Agent.mode = getIntent().getStringExtra("ai_mode");
 			//--ez ai_pure true: no nudges after a refused action and no fact notes, the model is on its own
 			if (getIntent().getBooleanExtra("ai_pure", false)) Agent.nudge = Agent.notes = false;
+			//--es ai_guide short|full|none picks the play guide appended to the rules
+			if (getIntent().getStringExtra("ai_guide") != null) Agent.guideSize = getIntent().getStringExtra("ai_guide");
 			aiBrain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
 			Agent.brain = aiBrain;
 			System.setProperty("spd.agent.autostart", "true");

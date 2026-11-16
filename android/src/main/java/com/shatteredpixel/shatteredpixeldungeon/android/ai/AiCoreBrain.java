@@ -61,7 +61,8 @@ public class AiCoreBrain implements Agent.Brain {
 	public Listener listener;
 
 	private final GenerativeModelFutures model;
-	private final SystemInstruction rules = new SystemInstruction(Agent.rules());
+	//built on the first turn: the rules read the guide through libGDX, which is not up yet in the constructor
+	private SystemInstruction rules;
 	//in model mode the model reasons before it answers; a small output limit makes
 	// AICore fail the whole request (COMPUTE_ERROR) instead of cutting the reasoning short
 	private final boolean reasoning = "model".equals(Agent.mode);
@@ -79,6 +80,7 @@ public class AiCoreBrain implements Agent.Brain {
 		worker.execute(() -> {
 			long t0 = android.os.SystemClock.elapsedRealtime();
 			try {
+				if (rules == null) rules = new SystemInstruction(Agent.rules());
 				GenerateContentRequest.Builder request = new GenerateContentRequest.Builder(
 						rules, new TextPart(observation));
 				request.setTemperature(0.2f);
