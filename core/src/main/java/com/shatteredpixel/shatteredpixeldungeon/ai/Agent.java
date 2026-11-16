@@ -71,6 +71,7 @@ public class Agent {
 	//action -> the turn its ban ends
 	private static final Map<String, Integer> bans = new HashMap<>();
 	private static final int PACING_BAN = 5;
+	private static int missedFrontier = -1;
 	private static int idle;
 	private static int turn;
 
@@ -84,6 +85,7 @@ public class Agent {
 				"loot - walk to the nearest item and pick it up\n" +
 				"descend - go to the stairs down and take them\n" +
 				"eat - eat food from the backpack\n" +
+				"heal - drink a healing potion\n" +
 				"wait - skip a turn\n" +
 				"search - look for hidden doors around you\n" +
 				"back - close the open window\n" +
@@ -121,7 +123,11 @@ public class Agent {
 		//an explore target that got the hero nowhere is dropped, so explore tries the next one
 		String why = null;
 		if (idle > 0 && "explore".equals( lastAction )) {
-			AgentObservation.deadEnds.add( Dungeon.depth * 100000 + AgentObservation.lastFrontier );
+			//one miss can be a hiccup (seen right after a kill), two in a row to the same place is a dead end
+			if (AgentObservation.lastFrontier == missedFrontier) {
+				AgentObservation.deadEnds.add( Dungeon.depth * 100000 + missedFrontier );
+			}
+			missedFrontier = AgentObservation.lastFrontier;
 		} else if (idle > 0 && lastAction != null) {
 			bans.put( lastAction, turn + 1 );
 			why = lastAction + " changed nothing, do something else";

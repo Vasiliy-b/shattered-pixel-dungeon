@@ -21,7 +21,9 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Piranha;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
+import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.food.Food;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfHealing;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
@@ -167,8 +169,16 @@ public class AgentObservation {
 		else if (hungry) hints.add( "hungry" );
 		for (String hint : hints) sb.append( "hint: " ).append( hint ).append( '\n' );
 
+		boolean canHeal = lowHp && hero.belongings.getItem( PotionOfHealing.class ) != null
+				&& healing( hero.belongings.getItem( PotionOfHealing.class ) ) && !banned.contains( "heal" );
+		//a potion lying within two steps is worth a hit on the way
+		boolean grabPotion = lowHp && !canHeal && !heaps.isEmpty() && !banned.contains( "loot" )
+				&& heaps.get( 0 ).type == Heap.Type.HEAP && healing( heaps.get( 0 ).peek() ) && steps[heaps.get( 0 ).pos] <= 2;
+
 		String reason = null;
 		if (window != null) reason = null;
+		else if (canHeal) reason = "HP is low and you have a healing potion";
+		else if (grabPotion) reason = "HP is low and a healing potion is close";
 		else if (avoidFight) reason = "HP is low, stay away from the enemy";
 		else if (canEat && visibleEnemies == 0) reason = "you are hungry and have food";
 		else if (rest) reason = "HP is low and no enemy is in sight, rest";
@@ -179,7 +189,9 @@ public class AgentObservation {
 
 		ruleAction = null;
 		if (reason != null) {
-			if (here && !adjacent && !banned.contains( "loot" )) ruleAction = "loot";
+			if (canHeal) ruleAction = "heal";
+			else if (grabPotion) ruleAction = "loot";
+			else if (here && !adjacent && !banned.contains( "loot" )) ruleAction = "loot";
 			else if (canEat && visibleEnemies == 0) ruleAction = "eat";
 			else if (rest) ruleAction = "wait";
 			else if (canAttack && adjacent) ruleAction = "attack";
@@ -228,8 +240,21 @@ public class AgentObservation {
 			if (heap.seen && steps[heap.pos] != Integer.MAX_VALUE
 					&& (heap.type == Heap.Type.HEAP || heap.type == Heap.Type.CHEST)) heaps.add( heap );
 		}
-		heaps.sort( (a, b) -> steps[a.pos] - steps[b.pos] );
+		//what the hero stands on, then what keeps it alive, then the rest; nearest first within each
+		heaps.sort( (a, b) -> rank( a, steps ) != rank( b, steps ) ? rank( a, steps ) - rank( b, steps )
+				: steps[a.pos] - steps[b.pos] );
 		return heaps.subList( 0, Math.min( MAX_ITEMS, heaps.size() ) );
+	}
+
+	private static int rank( Heap heap, int[] steps ) {
+		if (steps[heap.pos] == 0) return 0;
+		Item top = heap.type == Heap.Type.HEAP ? heap.peek() : null;
+		return top instanceof Food || healing( top ) ? 1 : 2;
+	}
+
+	//a healing potion the hero would recognise
+	static boolean healing( Item item ) {
+		return item instanceof PotionOfHealing && ((PotionOfHealing) item).isKnown();
 	}
 
 	//cell of the known regular stairs down, or -1
