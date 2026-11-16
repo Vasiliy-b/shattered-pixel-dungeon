@@ -31,7 +31,8 @@ public class AgentAction {
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
 					+ "|(use)\\s+(\\d{1,2})(?:\\s+on\\s+(\\d{1,2}))?"
 					+ "|(equip|throw)\\s+(\\d{1,2})"
-					+ "|(explore|descend|attack|loot|eat|heal|rest|wait|search|back))\\.?$" );
+					+ "|(loot)(?:\\s+(\\d{1,2}))?"
+					+ "|(explore|descend|attack|eat|heal|rest|wait|search|back))\\.?$" );
 
 	//returns the action as words ({"tap", dx, dy}, {"use", n}, {"use", n, "on", m}, {"explore"}), or null when the reply has no valid action line
 	static String[] parse( String reply ) {
@@ -46,7 +47,9 @@ public class AgentAction {
 			else if (m.group( 4 ) != null && m.group( 6 ) != null) found = new String[]{ "use", m.group( 5 ), "on", m.group( 6 ) };
 			else if (m.group( 4 ) != null) found = new String[]{ "use", m.group( 5 ) };
 			else if (m.group( 7 ) != null) found = new String[]{ m.group( 7 ), m.group( 8 ) };
-			else found = new String[]{ m.group( 9 ) };
+			else if (m.group( 9 ) != null && m.group( 10 ) != null) found = new String[]{ "loot", m.group( 10 ) };
+			else if (m.group( 9 ) != null) found = new String[]{ "loot" };
+			else found = new String[]{ m.group( 11 ) };
 		}
 		return found;
 	}
@@ -129,7 +132,10 @@ public class AgentAction {
 			case "loot":
 				List<Heap> loot = AgentObservation.loot( level, AgentObservation.stepsFrom( level, pos ) );
 				if (loot.isEmpty()) return "error: no item in reach";
-				GameScene.handleCell( loot.get( 0 ).pos );
+				//loot N takes the Nth item of the list the observation showed, plain loot the first
+				int n = action.length > 1 ? Integer.parseInt( action[1] ) : 1;
+				if (n < 1 || n > loot.size()) return "error: no item " + n + " on the floor";
+				GameScene.handleCell( loot.get( n - 1 ).pos );
 				return "ok";
 			case "descend":
 				int exit = AgentObservation.stairsDown( level );

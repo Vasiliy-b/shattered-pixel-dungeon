@@ -241,7 +241,9 @@ public class AgentObservation {
 		sb.append( "unexplored: " ).append( places.isEmpty() ? "none" : String.join( "; ", places ) ).append( '\n' );
 
 		List<String> items = new ArrayList<>();
-		for (Heap heap : loot( level, steps )) items.add( heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
+		for (Heap heap : loot( level, steps )) {
+			items.add( (items.size() + 1) + " " + heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
+		}
 		sb.append( "items on the floor: " ).append( items.isEmpty() ? "none" : String.join( "; ", items ) ).append( '\n' );
 
 		List<String> enemies = new ArrayList<>(), others = new ArrayList<>();
@@ -258,13 +260,15 @@ public class AgentObservation {
 		sb.append( "enemies: " ).append( enemies.isEmpty() ? "none" : String.join( "; ", enemies ) ).append( '\n' );
 
 		List<String> notes = new ArrayList<>();
-		if (hero.HP * 3 <= hero.HT) notes.add( "HP is low" );
 		Hunger hunger = hero.buff( Hunger.class );
-		if (hunger != null && hunger.isStarving()) notes.add( "starving, HP is dropping" );
-		else if (hunger != null && hunger.hunger() >= Hunger.HUNGRY) notes.add( "hungry" );
 		int here = level.map[hero.pos];
-		if (here == Terrain.DOOR || here == Terrain.OPEN_DOOR) notes.add( "you stand in a doorway" );
-		if (why != null) notes.add( why );
+		if (Agent.notes) {
+			if (hero.HP * 3 <= hero.HT) notes.add( "HP is low" );
+			if (hunger != null && hunger.isStarving()) notes.add( "starving, HP is dropping" );
+			else if (hunger != null && hunger.hunger() >= Hunger.HUNGRY) notes.add( "hungry" );
+			if (here == Terrain.DOOR || here == Terrain.OPEN_DOOR) notes.add( "you stand in a doorway" );
+		}
+		if (why != null && Agent.nudge) notes.add( why );
 		if (!notes.isEmpty()) sb.append( "notes: " ).append( String.join( "; ", notes ) ).append( '\n' );
 
 		Window window = GameScene.topWindow();
@@ -276,7 +280,7 @@ public class AgentObservation {
 				allowed.add( "attack" );
 				allowed.add( "throw N" );
 			}
-			if (!items.isEmpty()) allowed.add( "loot" );
+			if (!items.isEmpty()) allowed.add( "loot N" );
 			if (!frontiers.isEmpty()) allowed.add( "explore" );
 			if (exit != -1) allowed.add( "descend" );
 			allowed.add( "use N" );

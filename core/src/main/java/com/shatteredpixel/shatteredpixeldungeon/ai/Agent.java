@@ -75,6 +75,18 @@ public class Agent {
 	private static int missedFrontier = -1;
 	//the last action was refused by the game ("error: ...") rather than played without effect
 	private static boolean lastFailed;
+	//the last reply was not an action and nothing was played (model mode)
+	private static boolean lastInvalid;
+	//replies in a row that were not actions or that the game refused; model mode stops the run at the limit
+	private static int strikes;
+	private static final int MAX_STRIKES = 20;
+	private static boolean stopped;
+
+	//model mode switches, both on by default:
+	//nudge - the note that the last action did nothing or is not possible, or that the hero paces
+	public static boolean nudge = !"false".equals( System.getProperty( "spd.agent.nudge" ) );
+	//notes - derived facts such as "HP is low", "hungry", "you stand in a doorway"
+	public static boolean notes = !"false".equals( System.getProperty( "spd.agent.notes" ) );
 	private static int idle;
 	private static int turn;
 
@@ -104,7 +116,7 @@ public class Agent {
 					"Actions:\n" +
 					"explore - walk to the nearest unexplored place\n" +
 					"attack - fight the nearest enemy\n" +
-					"loot - walk to the nearest item on the floor and pick it up\n" +
+					"loot N - walk to item number N on the floor and pick it up\n" +
 					"descend - go to the stairs down and take them\n" +
 					"use N - eat, drink or read inventory item number N\n" +
 					"use N on M - read scroll of upgrade N on item M\n" +
@@ -144,7 +156,7 @@ public class Agent {
 
 	//hooked into GameScene.update()
 	public static void tick() {
-		if (brain == null || waiting) return;
+		if (brain == null || waiting || stopped) return;
 		if (Dungeon.hero != null && Dungeon.hero.resting && AgentObservation.restedEnough( Dungeon.hero )) {
 			Dungeon.hero.resting = false;
 		}
@@ -172,7 +184,7 @@ public class Agent {
 				AgentObservation.deadEnds.add( Dungeon.depth * 100000 + missedFrontier );
 			}
 			missedFrontier = AgentObservation.lastFrontier;
-		} else if (idle > 0 && lastAction != null) {
+		} else if (idle > 0 && lastAction != null && !lastInvalid) {
 			if (!modelMode()) bans.put( lastAction, turn + 1 );
 			why = lastAction + (lastFailed ? " is not possible now" : " changed nothing") + ", do something else";
 		}
@@ -204,7 +216,7 @@ public class Agent {
 		}
 		turn++;
 
-		if (idle >= MAX_IDLE) {
+		if (idle >= MAX_IDLE && !modelMode()) {
 			//the brain keeps choosing actions that do nothing: stop paying for calls and force time forward
 			finish( observation, null, "idle_limit", 0, true );
 			return;
@@ -245,19 +257,31 @@ public class Agent {
 			action = forced || reply == null ? null : AgentAction.normalize( reply );
 			valid = action != null;
 			if (forced) action = GameScene.topWindow() != null ? "back" : "wait";
-			else if (!valid) action = AgentAction.fallback();
-			result = AgentAction.apply( action );
-			lastFailed = result.startsWith( "error" );
-			if (!action.equals( lastAction )) prevAction = lastAction;
-			lastAction = action;
+			else if (!valid && !modelMode()) action = AgentAction.fallback();
 
-			history.add( (valid ? action : "invalid reply, played " + action) + " -> " + result );
+			lastInvalid = action == null;
+			if (lastInvalid) {
+				//model mode plays nothing for the model: a bad reply costs no game time and is reported back
+				result = "error: not an action";
+				String said = reply == null ? "" : reply.trim();
+				said = said.substring( said.lastIndexOf( '\n' ) + 1 );
+				if (said.length() > 60) said = said.substring( 0, 60 );
+				history.add( reply == null ? "no reply (" + error + ")" : "your reply \"" + said + "\" is not an action" );
+			} else {
+				result = AgentAction.apply( action );
+				lastFailed = result.startsWith( "error" );
+				if (!action.equals( lastAction )) prevAction = lastAction;
+				lastAction = action;
+				history.add( (valid ? action : "invalid reply, played " + action) + " -> " + result );
+			}
 			if (history.size() > MAX_HISTORY) history.remove( 0 );
 		}
 
+		strikes = result.startsWith( "error" ) ? strikes + 1 : 0;
+
 		//who chose: a harness rule (its hint named the action), the model, or the fallback for a bad reply
 		String decider = forced || (valid && action.equals( AgentObservation.ruleAction )) ? "rule"
-				: valid ? "model" : "fallback";
+				: valid ? "model" : action == null ? "none" : "fallback";
 		journal( "\"turn\":" + turn
 				+ ",\"depth\":" + Dungeon.depth
 				+ ",\"hp\":" + Dungeon.hero.HP + ",\"ht\":" + Dungeon.hero.HT
@@ -273,6 +297,12 @@ public class Agent {
 				+ ",\"latency_ms\":" + latencyMs
 				+ ",\"error\":" + quote( error )
 				+ ",\"obs\":" + quote( observation ) );
+
+		if (modelMode() && strikes >= MAX_STRIKES) {
+			//the run ends here: nothing is played on the model's behalf
+			journal( "\"event\":\"stuck\",\"turn\":" + turn );
+			stopped = true;
+		}
 	}
 
 	//Directory for journal.jsonl, one JSON object per line. The platform launcher sets it
@@ -333,7 +363,11 @@ public class Agent {
 
 	private static void startRun() {
 		int slot = GamesInProgress.firstEmpty();
-		if (slot == -1) return;
+		if (slot == -1) {
+			//interrupted agent runs fill every slot: the last one is given up for the new run
+			slot = GamesInProgress.MAX_SLOTS;
+			Dungeon.deleteGame( slot, true );
+		}
 		//same steps as the hero select screen takes for a new game
 		GamesInProgress.curSlot = slot;
 		GamesInProgress.selectedClass = HeroClass.WARRIOR;

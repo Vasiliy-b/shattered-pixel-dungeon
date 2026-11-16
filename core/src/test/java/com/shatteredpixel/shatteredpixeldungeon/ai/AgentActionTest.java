@@ -34,6 +34,9 @@ public class AgentActionTest {
 		assertArrayEquals( new String[]{ "eat" }, AgentAction.parse( "Action: eat." ) );
 		assertArrayEquals( new String[]{ "heal" }, AgentAction.parse( "heal" ) );
 		assertArrayEquals( new String[]{ "rest" }, AgentAction.parse( "rest" ) );
+		assertArrayEquals( new String[]{ "loot", "2" }, AgentAction.parse( "**loot 2**" ) );
+		assertArrayEquals( new String[]{ "use", "4", "on", "1" }, AgentAction.parse( "I upgrade.\nuse 4 on 1" ) );
+		assertNull( AgentAction.parse( "use golden potion" ) );
 	}
 
 	@Test
