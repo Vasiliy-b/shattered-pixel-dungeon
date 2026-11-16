@@ -232,7 +232,7 @@ public class AndroidLauncher extends AndroidApplication {
 		view.setBackgroundColor(0xB0000000);
 		view.setTextSize(11);
 		view.setPadding(16, 8, 16, 8);
-		view.setMaxLines(9);
+		view.setMaxLines(16);
 		view.setText("model: waiting for the first turn");
 		android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
 				android.view.ViewGroup.LayoutParams.MATCH_PARENT,

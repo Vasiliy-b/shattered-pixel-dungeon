@@ -27,6 +27,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.google.mlkit.genai.common.GenAiException;
+import com.google.mlkit.genai.prompt.Candidate;
 import com.google.mlkit.genai.prompt.GenerateContentRequest;
 import com.google.mlkit.genai.prompt.GenerateContentResponse;
 import com.google.mlkit.genai.prompt.Generation;

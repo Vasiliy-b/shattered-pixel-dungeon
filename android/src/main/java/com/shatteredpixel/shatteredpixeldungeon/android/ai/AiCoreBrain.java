@@ -24,6 +24,7 @@ package com.shatteredpixel.shatteredpixeldungeon.android.ai;
 import android.util.Log;
 
 import com.google.mlkit.genai.common.GenAiException;
+import com.google.mlkit.genai.prompt.Candidate;
 import com.google.mlkit.genai.prompt.GenerateContentRequest;
 import com.google.mlkit.genai.prompt.GenerateContentResponse;
 import com.google.mlkit.genai.prompt.Generation;
@@ -87,6 +88,11 @@ public class AiCoreBrain implements Agent.Brain {
 				GenerateContentResponse response = model.generateContent(request.build()).get();
 				String text = response.getCandidates().isEmpty()
 						? "" : response.getCandidates().get(0).getText();
+				//the hidden reasoning of thinking mode goes first, so the journal and the screen show it;
+				// the game takes the last action line, which stays the model's own answer
+				StringBuilder thoughts = new StringBuilder();
+				for (Candidate thought : response.getThoughtProcess()) thoughts.append(thought.getText());
+				if (thoughts.length() > 0) text = "[thinking] " + thoughts.toString().trim() + "\n[answer]\n" + text;
 				show(text, t0);
 				reply.accept(text);
 			} catch (ExecutionException e) {
