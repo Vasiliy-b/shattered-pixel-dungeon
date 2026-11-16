@@ -46,7 +46,8 @@ public class Agent {
 		void fail( String errorCode );
 	}
 
-	public static Brain brain = "scripted".equals( System.getProperty( "spd.agent" ) ) ? new ScriptedBrain() : null;
+	public static Brain brain = "scripted".equals( System.getProperty( "spd.agent" ) ) ? new ScriptedBrain()
+			: "ollama".equals( System.getProperty( "spd.agent" ) ) ? new OllamaBrain() : null;
 
 	//A/B switches, off by default: macro actions only and no map work better for small models
 	public static boolean allowTap = Boolean.getBoolean( "spd.agent.tap" );
@@ -77,8 +78,44 @@ public class Agent {
 	private static int idle;
 	private static int turn;
 
+	//"rules": the harness settles hard cases itself and marks its choice with "-> action" (the baseline).
+	//"model": the observation is facts only and every decision is the model's, reasoning included.
+	public static String mode = System.getProperty( "spd.agent.mode", "rules" );
+	static boolean modelMode() {
+		return "model".equals( mode );
+	}
+
+	//play advice for model mode; kept to what the action set can carry out
+	public static String guide =
+			"- Put every scroll of upgrade into the same one or two items: armor first, then the weapon.\n" +
+			"- Drink a healing potion before HP gets critical. Eat when hungry.\n" +
+			"- Unknown potions and scrolls are identified by using them: do it with high HP and no enemy near.\n" +
+			"- Fight in doorways and corridors so only one enemy reaches you.\n" +
+			"- An enemy that has not noticed you or is still far: wait for it to come, then the first hit is yours. " +
+			"Snakes dodge most hits unless surprised.\n" +
+			"- Explore the whole floor and pick up items before going down. Rest when HP is low and no enemy is near.\n" +
+			"- Equip better weapons and armor you find if your strength allows.\n";
+
 	//static part of the prompt: keep it as an unchanging prefix so the model's KV cache is reused
 	public static String rules() {
+		if (modelMode()) {
+			return "You play the roguelike Shattered Pixel Dungeon as a warrior. Goal: survive and go as deep as you can.\n" +
+					"Each turn you get the game state. Think in a few short lines, then write one action alone on the last line.\n" +
+					"Actions:\n" +
+					"explore - walk to the nearest unexplored place\n" +
+					"attack - fight the nearest enemy\n" +
+					"loot - walk to the nearest item on the floor and pick it up\n" +
+					"descend - go to the stairs down and take them\n" +
+					"use N - eat, drink or read inventory item number N\n" +
+					"use N on M - read scroll of upgrade N on item M\n" +
+					"equip N - equip item N\n" +
+					"throw N - throw item N at the nearest enemy\n" +
+					"rest - rest until HP recovers or something happens\n" +
+					"wait - skip a turn\n" +
+					"search - walk along the walls looking for hidden doors\n" +
+					"back - close the open window\n" +
+					"Advice:\n" + guide;
+		}
 		return "You play the roguelike Shattered Pixel Dungeon. Goal: survive and go as deep as you can.\n" +
 				"Each turn you get the game state. Lines ending with \"-> action\" show what that action would do; a hint line overrides the others.\n" +
 				"Reply with exactly one action and nothing else:\n" +
@@ -136,7 +173,7 @@ public class Agent {
 			}
 			missedFrontier = AgentObservation.lastFrontier;
 		} else if (idle > 0 && lastAction != null) {
-			bans.put( lastAction, turn + 1 );
+			if (!modelMode()) bans.put( lastAction, turn + 1 );
 			why = lastAction + (lastFailed ? " is not possible now" : " changed nothing") + ", do something else";
 		}
 
@@ -150,8 +187,10 @@ public class Agent {
 				&& AgentObservation.nearestEnemy( Dungeon.level, Dungeon.hero.pos ) == null;
 		if (pacing) {
 			//both halves of the loop are off the table for a while, then the walk gets another ten moves
-			bans.put( lastAction, turn + PACING_BAN );
-			if (prevAction != null) bans.put( prevAction, turn + PACING_BAN );
+			if (!modelMode()) {
+				bans.put( lastAction, turn + PACING_BAN );
+				if (prevAction != null) bans.put( prevAction, turn + PACING_BAN );
+			}
 			why = "you keep moving back and forth, do something else";
 			positions.clear();
 		}
@@ -228,6 +267,8 @@ public class Agent {
 				+ ",\"valid\":" + valid
 				+ ",\"forced\":" + forced
 				+ ",\"decider\":" + quote( decider )
+				+ ",\"mode\":" + quote( mode )
+				+ ",\"echo\":" + echo( observation, action )
 				+ ",\"result\":" + quote( result )
 				+ ",\"latency_ms\":" + latencyMs
 				+ ",\"error\":" + quote( error )
@@ -250,6 +291,13 @@ public class Agent {
 		}
 	}
 
+	//the action is the last one the observation offered with an arrow: an echo, not a decision
+	private static boolean echo( String observation, String action ) {
+		int arrow = observation.lastIndexOf( "-> " );
+		return action != null && arrow != -1
+				&& observation.startsWith( action + "\n", arrow + 3 );
+	}
+
 	static String quote( String s ) {
 		if (s == null) return "null";
 		StringBuilder sb = new StringBuilder( "\"" );
@@ -268,6 +316,8 @@ public class Agent {
 		if (brain == null) return;
 		//the new-player tutorial hides the doors of the first rooms until guide pages are read
 		SPDSettings.intro( false );
+		//the phone layout on every platform: item prompts are windows there, which the bridge handles
+		SPDSettings.interfaceSize( 0 );
 		Document.ADVENTURERS_GUIDE.findPage( Document.GUIDE_SEARCHING );
 		if (autostarted || !Boolean.getBoolean( "spd.agent.autostart" )) return;
 		autostarted = true;

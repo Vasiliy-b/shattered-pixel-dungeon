@@ -13,12 +13,30 @@ package com.shatteredpixel.shatteredpixeldungeon.ai;
 //Proves the text carries enough to act on, and prints each turn for inspection.
 public class ScriptedBrain implements Agent.Brain {
 
+	//-Dspd.agent.script="use 3;equip 4;throw 5": actions played first, one per turn, to exercise the executors
+	private final java.util.ArrayDeque<String> script = new java.util.ArrayDeque<>();
+	{
+		for (String step : System.getProperty( "spd.agent.script", "" ).split( ";" )) {
+			if (!step.trim().isEmpty()) script.add( step.trim().replace( '_', ' ' ) );
+		}
+	}
+
 	@Override
 	public void decide( String observation, Agent.Reply reply ) {
 		String action = "wait";
+		int allowed = observation.lastIndexOf( "Allowed now: " );
 		//what a small model was measured to do: repeat the last offered "-> action"
-		int arrow = observation.lastIndexOf( "-> " );
-		if (arrow != -1) action = observation.substring( arrow + 3, observation.indexOf( '\n', arrow ) );
+		java.util.regex.Matcher offered = java.util.regex.Pattern.compile( "-> ([a-z]+)\\n" ).matcher( observation );
+		String last = null;
+		while (offered.find()) last = offered.group( 1 );
+		if (!script.isEmpty() && !observation.contains( "window open" )) {
+			action = script.poll();
+		} else if (allowed != -1) {
+			//model mode has no arrows: take the first allowed action
+			action = observation.substring( allowed + 13, observation.indexOf( '\n', allowed ) ).split( ", " )[0];
+		} else if (last != null) {
+			action = last;
+		}
 		System.out.println( "=== AGENT TURN ===\n" + observation + " " + action );
 		reply.accept( action );
 	}

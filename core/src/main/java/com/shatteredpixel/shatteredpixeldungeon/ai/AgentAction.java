@@ -29,19 +29,24 @@ public class AgentAction {
 	//the action must sit on its own line; anything else in the reply (reasoning) is ignored
 	private static final Pattern LINE = Pattern.compile(
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
+					+ "|(use)\\s+(\\d{1,2})(?:\\s+on\\s+(\\d{1,2}))?"
+					+ "|(equip|throw)\\s+(\\d{1,2})"
 					+ "|(explore|descend|attack|loot|eat|heal|rest|wait|search|back))\\.?$" );
 
-	//returns {"tap", dx, dy} or {name of a macro action}, or null when the reply has no valid action line
+	//returns the action as words ({"tap", dx, dy}, {"use", n}, {"use", n, "on", m}, {"explore"}), or null when the reply has no valid action line
 	static String[] parse( String reply ) {
 		String[] found = null;
 		if (reply == null) return null;
 		for (String line : reply.split( "\n" )) {
-			Matcher m = LINE.matcher( line.trim().toLowerCase() );
+			//models like to decorate the answer line: **use 4**, `explore`
+			Matcher m = LINE.matcher( line.replaceAll( "[*`]", "" ).trim().toLowerCase() );
 			if (!m.matches()) continue;
 			//the last action line wins, so "reasoning first, action last" replies work
-			found = m.group( 1 ) != null
-					? new String[]{ "tap", m.group( 2 ), m.group( 3 ) }
-					: new String[]{ m.group( 4 ) };
+			if (m.group( 1 ) != null) found = new String[]{ "tap", m.group( 2 ), m.group( 3 ) };
+			else if (m.group( 4 ) != null && m.group( 6 ) != null) found = new String[]{ "use", m.group( 5 ), "on", m.group( 6 ) };
+			else if (m.group( 4 ) != null) found = new String[]{ "use", m.group( 5 ) };
+			else if (m.group( 7 ) != null) found = new String[]{ m.group( 7 ), m.group( 8 ) };
+			else found = new String[]{ m.group( 9 ) };
 		}
 		return found;
 	}
@@ -131,6 +136,14 @@ public class AgentAction {
 				if (exit == -1) return "error: stairs down not found yet";
 				GameScene.handleCell( exit );
 				return "ok";
+			case "use":
+				return action.length == 4
+						? AgentInventory.useOn( Integer.parseInt( action[1] ), Integer.parseInt( action[3] ) )
+						: AgentInventory.use( Integer.parseInt( action[1] ) );
+			case "equip":
+				return AgentInventory.equip( Integer.parseInt( action[1] ) );
+			case "throw":
+				return AgentInventory.throwAt( Integer.parseInt( action[1] ) );
 			default:
 				int x = pos % level.width() + Integer.parseInt( action[1] );
 				int y = pos / level.width() + Integer.parseInt( action[2] );

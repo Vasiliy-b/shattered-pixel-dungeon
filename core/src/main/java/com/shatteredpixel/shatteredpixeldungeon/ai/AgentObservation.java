@@ -77,6 +77,7 @@ public class AgentObservation {
 		Hero hero = Dungeon.hero;
 		int[] steps = stepsFrom( level, hero.pos );
 		StringBuilder sb = new StringBuilder();
+		boolean facts = Agent.modelMode();
 
 		sb.append( "depth " ).append( Dungeon.depth )
 				.append( " | HP " ).append( hero.HP ).append( '/' ).append( hero.HT )
@@ -89,6 +90,7 @@ public class AgentObservation {
 			if (buff.icon() != BuffIndicator.NONE) status.add( buff.name() );
 		}
 		if (!status.isEmpty()) sb.append( "status: " ).append( String.join( ", ", status ) ).append( '\n' );
+		if (facts) sb.append( "inventory: " ).append( AgentInventory.render( hero ) ).append( '\n' );
 
 		//repeats are folded: a word said three times in a row gets echoed by a small model
 		List<String> recent = new ArrayList<>();
@@ -121,6 +123,10 @@ public class AgentObservation {
 		//Hard rules are settled here, not by the model: measured on Gemini Nano 4, a one-word reply
 		//just repeats the last "-> action" in the text. A banned action loses its arrow and the
 		//rule's own choice goes last.
+		if (facts) {
+			renderFacts( sb, level, hero, steps, why );
+			return sb.toString();
+		}
 		Mob nearest = nearestEnemy( level, hero.pos );
 		boolean lowHp = hero.HP * 3 <= hero.HT;
 		boolean avoidFight = lowHp && nearest != null && !level.adjacent( hero.pos, nearest.pos );
@@ -221,6 +227,69 @@ public class AgentObservation {
 		return sb.toString();
 	}
 
+	//Model mode: the same state as facts, with no arrows, no hints and no order of urgency.
+	//What to do about it is left to the model.
+	private static void renderFacts( StringBuilder sb, Level level, Hero hero, int[] steps, String why ) {
+		List<String> allowed = new ArrayList<>();
+
+		int exit = stairsDown( level );
+		sb.append( "stairs down: " ).append( exit == -1 ? "not found yet" : where( level, hero.pos, exit, steps ) ).append( '\n' );
+
+		List<Integer> frontiers = nearestFrontiers( level, hero.pos );
+		List<String> places = new ArrayList<>();
+		for (int cell : frontiers) places.add( where( level, hero.pos, cell, steps ) );
+		sb.append( "unexplored: " ).append( places.isEmpty() ? "none" : String.join( "; ", places ) ).append( '\n' );
+
+		List<String> items = new ArrayList<>();
+		for (Heap heap : loot( level, steps )) items.add( heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
+		sb.append( "items on the floor: " ).append( items.isEmpty() ? "none" : String.join( "; ", items ) ).append( '\n' );
+
+		List<String> enemies = new ArrayList<>(), others = new ArrayList<>();
+		for (Mob mob : visibleMobs( level )) {
+			String line = mob.name() + " hp " + mob.HP + "/" + mob.HT + ", " + where( level, hero.pos, mob.pos, steps );
+			if (mob.alignment == Char.Alignment.ENEMY) {
+				enemies.add( line + (mob.state == mob.HUNTING ? " (hunting you)"
+						: mob.state == mob.SLEEPING ? " (asleep)" : " (has not noticed you)") );
+			} else {
+				others.add( line + (mob.alignment == Char.Alignment.ALLY ? " (ally)" : " (neutral)") );
+			}
+		}
+		if (!others.isEmpty()) sb.append( "others: " ).append( String.join( "; ", others ) ).append( '\n' );
+		sb.append( "enemies: " ).append( enemies.isEmpty() ? "none" : String.join( "; ", enemies ) ).append( '\n' );
+
+		List<String> notes = new ArrayList<>();
+		if (hero.HP * 3 <= hero.HT) notes.add( "HP is low" );
+		Hunger hunger = hero.buff( Hunger.class );
+		if (hunger != null && hunger.isStarving()) notes.add( "starving, HP is dropping" );
+		else if (hunger != null && hunger.hunger() >= Hunger.HUNGRY) notes.add( "hungry" );
+		int here = level.map[hero.pos];
+		if (here == Terrain.DOOR || here == Terrain.OPEN_DOOR) notes.add( "you stand in a doorway" );
+		if (why != null) notes.add( why );
+		if (!notes.isEmpty()) sb.append( "notes: " ).append( String.join( "; ", notes ) ).append( '\n' );
+
+		Window window = GameScene.topWindow();
+		if (window != null) {
+			sb.append( "window open: " ).append( window.getClass().getSimpleName() ).append( '\n' );
+			allowed.add( "back" );
+		} else {
+			if (!enemies.isEmpty()) {
+				allowed.add( "attack" );
+				allowed.add( "throw N" );
+			}
+			if (!items.isEmpty()) allowed.add( "loot" );
+			if (!frontiers.isEmpty()) allowed.add( "explore" );
+			if (exit != -1) allowed.add( "descend" );
+			allowed.add( "use N" );
+			allowed.add( "use N on M" );
+			allowed.add( "equip N" );
+			allowed.add( "rest" );
+			allowed.add( "wait" );
+			allowed.add( "search" );
+		}
+		sb.append( "Allowed now: " ).append( String.join( ", ", allowed ) ).append( '\n' );
+		sb.append( "\nYour reasoning, then the action on the last line:" );
+	}
+
 	static List<Mob> visibleMobs( Level level ) {
 		List<Mob> mobs = new ArrayList<>();
 		for (Mob mob : level.mobs) {
@@ -240,7 +309,9 @@ public class AgentObservation {
 	static Mob nearestEnemy( Level level, int from ) {
 		Mob best = null;
 		for (Mob mob : visibleMobs( level )) {
-			if (mob.alignment != Char.Alignment.ENEMY || !threat( level, from, mob )) continue;
+			if (mob.alignment != Char.Alignment.ENEMY) continue;
+			//in model mode the target is simply the nearest enemy: whether to fight it is the model's call
+			if (!Agent.modelMode() && !threat( level, from, mob )) continue;
 			if (best == null || level.distance( from, mob.pos ) < level.distance( from, best.pos )) best = mob;
 		}
 		return best;
@@ -249,10 +320,16 @@ public class AgentObservation {
 	//seen heaps the hero can walk to and take or open, nearest first, at most MAX_ITEMS
 	static List<Heap> loot( Level level, int[] steps ) {
 		List<Heap> heaps = new ArrayList<>();
+		boolean nearestFirst = Agent.modelMode();
 		for (Heap heap : level.heaps.valueList()) {
 			//a long walk for an ordinary item costs more food than it is worth
-			if (heap.seen && steps[heap.pos] <= (rank( heap, steps ) == 2 ? MAX_LOOT_WALK : Integer.MAX_VALUE - 1)
+			int reach = nearestFirst || rank( heap, steps ) != 2 ? Integer.MAX_VALUE - 1 : MAX_LOOT_WALK;
+			if (heap.seen && steps[heap.pos] <= reach
 					&& (heap.type == Heap.Type.HEAP || heap.type == Heap.Type.CHEST)) heaps.add( heap );
+		}
+		if (nearestFirst) {
+			heaps.sort( (a, b) -> steps[a.pos] - steps[b.pos] );
+			return heaps.subList( 0, Math.min( MAX_ITEMS, heaps.size() ) );
 		}
 		//what the hero stands on, then what keeps it alive, then the rest; nearest first within each
 		heaps.sort( (a, b) -> rank( a, steps ) != rank( b, steps ) ? rank( a, steps ) - rank( b, steps )
