@@ -180,6 +180,8 @@ public class AndroidLauncher extends AndroidApplication {
 			if (getIntent().getBooleanExtra("ai_pure", false)) Agent.nudge = Agent.notes = false;
 			//--ez ai_pos true: the model may walk to doors (go N) and step in a direction (move D)
 			if (getIntent().getBooleanExtra("ai_pos", false)) Agent.positioning = true;
+			//--ez ai_talents_short true: list talents by name only, their descriptions stay in the full guide
+			if (getIntent().getBooleanExtra("ai_talents_short", false)) Agent.talentDetails = false;
 			//--es ai_guide short|full|none picks the play guide appended to the rules
 			if (getIntent().getStringExtra("ai_guide") != null) Agent.guideSize = getIntent().getStringExtra("ai_guide");
 			aiBrain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
