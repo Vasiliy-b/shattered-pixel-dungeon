@@ -234,7 +234,7 @@ public class AndroidLauncher extends AndroidApplication {
 		view.setBackgroundColor(0xB0000000);
 		view.setTextSize(11);
 		view.setPadding(16, 8, 16, 8);
-		view.setMaxLines(16);
+		view.setMaxLines(22);
 		view.setText("model: waiting for the first turn");
 		android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
 				android.view.ViewGroup.LayoutParams.MATCH_PARENT,
@@ -245,7 +245,13 @@ public class AndroidLauncher extends AndroidApplication {
 		final int[] turn = {0};
 		brain.listener = ( text, latencyMs ) -> runOnUiThread(() -> {
 			turn[0]++;
-			view.setText("#" + turn[0] + "  " + latencyMs / 100 / 10f + " s\n" + text.trim());
+			//the reasoning opens by restating the state; its end, where the choice is made, is the part worth reading
+			String[] lines = text.trim().split("\n");
+			StringBuilder tail = new StringBuilder();
+			for (int i = Math.max(0, lines.length - 14); i < lines.length; i++) {
+				if (!lines[i].trim().isEmpty()) tail.append(lines[i].trim()).append('\n');
+			}
+			view.setText("#" + turn[0] + "  " + latencyMs / 100 / 10f + " s" + (lines.length > 14 ? "  ...\n" : "\n") + tail.toString().trim());
 		});
 	}
 
