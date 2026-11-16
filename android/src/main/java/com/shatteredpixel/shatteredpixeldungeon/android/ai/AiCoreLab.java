@@ -136,6 +136,18 @@ public class AiCoreLab implements Runnable {
 					AiCoreSmokeTest.put(o, "latency_ms", SystemClock.elapsedRealtime() - t0);
 					AiCoreSmokeTest.put(o, "text", response.getCandidates().isEmpty()
 							? "" : response.getCandidates().get(0).getText());
+					StringBuilder thoughts = new StringBuilder();
+					for (Candidate thought : response.getThoughtProcess()) thoughts.append(thought.getText());
+					if (thoughts.length() > 0) AiCoreSmokeTest.put(o, "thoughts", thoughts.toString());
+					AiCoreSmokeTest.put(o, "candidates", response.getCandidates().size());
+					if (!response.getCandidates().isEmpty()) {
+						AiCoreSmokeTest.put(o, "finish", String.valueOf(response.getCandidates().get(0).getFinishReason()));
+						JSONArray calls = new JSONArray();
+						for (FunctionCall call : response.getCandidates().get(0).getFunctionCalls()) {
+							calls.put(call.getName() + " " + call.getArguments());
+						}
+						if (calls.length() > 0) AiCoreSmokeTest.put(o, "calls", calls);
+					}
 				} catch (ExecutionException e) {
 					AiCoreSmokeTest.put(o, "latency_ms", SystemClock.elapsedRealtime() - t0);
 					Throwable cause = e.getCause() != null ? e.getCause() : e;
