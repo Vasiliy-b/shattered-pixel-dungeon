@@ -82,6 +82,9 @@ public class Agent {
 	private static final int MAX_STRIKES = 20;
 	private static boolean stopped;
 
+	//model mode: the model may choose where to stand ("places" line, go N, move D); off by default
+	public static boolean positioning = Boolean.getBoolean( "spd.agent.positioning" );
+
 	//model mode switches, both on by default:
 	//nudge - the note that the last action did nothing or is not possible, or that the hero paces
 	public static boolean nudge = !"false".equals( System.getProperty( "spd.agent.nudge" ) );
@@ -127,6 +130,9 @@ public class Agent {
 					"descend - go to the stairs down and take them\n" +
 					"use N - eat, drink or read inventory item number N\n" +
 					"use N on M - read scroll of upgrade N on item M\n" +
+					(positioning ? "go N - walk to place number N. A doorway lets only one enemy reach you, " +
+							"and an enemy stepping through it towards you is hit for sure.\n" +
+							"move D - one step in direction D: n, ne, e, se, s, sw, w, nw. Stepping into an enemy attacks it.\n" : "") +
 					"equip N - equip inventory item number N\n" +
 					"throw N - throw inventory item number N at the nearest enemy\n" +
 					"talent N - spend a talent point on talent number N\n" +
@@ -287,7 +293,8 @@ public class Agent {
 			if (history.size() > MAX_HISTORY) history.remove( 0 );
 		}
 
-		strikes = result.startsWith( "error" ) ? strikes + 1 : 0;
+		//a reply that came while the game was busy says nothing about the model
+		if (!result.equals( "error: game was not ready" )) strikes = result.startsWith( "error" ) ? strikes + 1 : 0;
 
 		//who chose: a harness rule (its hint named the action), the model, or the fallback for a bad reply
 		String decider = forced || (valid && action.equals( AgentObservation.ruleAction )) ? "rule"

@@ -30,14 +30,18 @@ public class AgentAction {
 	private static final Pattern LINE = Pattern.compile(
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
 					+ "|(use)\\s+(\\d{1,2})(?:\\s+on\\s+(\\d{1,2}))?"
-					+ "|(equip|throw|talent)\\s+(\\d{1,2})"
+					+ "|(equip|throw|talent|go)\\s+(\\d{1,2})"
 					+ "|(loot|explore)(?:\\s+(\\d{1,2}))?"
-					+ "|(descend|attack|eat|heal|rest|wait|search|back))\\.?$" );
+					+ "|(descend|attack|eat|heal|rest|wait|search|back)"
+					+ "|(move)\\s+(n|ne|e|se|s|sw|w|nw|north|northeast|east|southeast|south|southwest|west|northwest))\\.?$" );
 
 	//returns the action as words ({"tap", dx, dy}, {"use", n}, {"use", n, "on", m}, {"explore"}), or null when the reply has no valid action line
 	static String[] parse( String reply ) {
 		String[] found = null;
 		if (reply == null) return null;
+		//a brain may hand over hidden reasoning too: only what follows its [answer] marker is the reply
+		int answer = reply.lastIndexOf( "[answer]" );
+		if (answer != -1) reply = reply.substring( answer + 8 );
 		for (String line : reply.split( "\n" )) {
 			//models like to decorate the answer line: **use 4**, `explore`
 			Matcher m = LINE.matcher( line.replaceAll( "[*`]", "" ).trim().toLowerCase() );
@@ -49,6 +53,8 @@ public class AgentAction {
 			else if (m.group( 7 ) != null) found = new String[]{ m.group( 7 ), m.group( 8 ) };
 			else if (m.group( 9 ) != null && m.group( 10 ) != null) found = new String[]{ m.group( 9 ), m.group( 10 ) };
 			else if (m.group( 9 ) != null) found = new String[]{ m.group( 9 ) };
+			else if (m.group( 12 ) != null) found = new String[]{ "move", m.group( 13 ).replace( "north", "n" )
+					.replace( "south", "s" ).replace( "east", "e" ).replace( "west", "w" ) };
 			else found = new String[]{ m.group( 11 ) };
 		}
 		return found;
@@ -151,6 +157,18 @@ public class AgentAction {
 						: AgentInventory.use( Integer.parseInt( action[1] ) );
 			case "equip":
 				return AgentInventory.equip( Integer.parseInt( action[1] ) );
+			case "go":
+				List<Integer> places = AgentObservation.places( level, pos );
+				int g = Integer.parseInt( action[1] );
+				if (g < 1 || g > places.size()) return "error: no place " + g;
+				GameScene.handleCell( places.get( g - 1 ) );
+				return "ok";
+			case "move":
+				int to = pos + AgentObservation.offset( level, action[1] );
+				if (!AgentObservation.canStep( level, to )) return "error: cannot move " + action[1];
+				//the same as a tap on the next cell: a step, or a hit if someone stands there
+				GameScene.handleCell( to );
+				return "ok";
 			case "talent":
 				return AgentInventory.talent( Integer.parseInt( action[1] ) );
 			case "throw":

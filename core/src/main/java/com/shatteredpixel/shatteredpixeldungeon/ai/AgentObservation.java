@@ -14,6 +14,7 @@
 package com.shatteredpixel.shatteredpixeldungeon.ai;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Hunger;
@@ -229,6 +230,41 @@ public class AgentObservation {
 		return sb.toString();
 	}
 
+	static final String[] DIRECTIONS = { "n", "ne", "e", "se", "s", "sw", "w", "nw" };
+
+	static int offset( Level level, String direction ) {
+		int w = level.width();
+		switch (direction) {
+			case "n": return -w;
+			case "ne": return -w + 1;
+			case "e": return 1;
+			case "se": return w + 1;
+			case "s": return w;
+			case "sw": return w - 1;
+			case "w": return -1;
+			default: return -w - 1;
+		}
+	}
+
+	static boolean canStep( Level level, int cell ) {
+		return cell >= 0 && cell < level.length() && (level.passable[cell] || Actor.findChar( cell ) != null);
+	}
+
+	private static final int MAX_PLACES = 5;
+
+	//Named cells the hero can walk to: known reachable doors, nearest first. A doorway is where one
+	//enemy at a time can reach the hero, so it is the place a player would pick to fight.
+	static List<Integer> places( Level level, int from ) {
+		final int[] distance = stepsFrom( level, from );
+		List<Integer> doors = new ArrayList<>();
+		for (int i = 0; i < level.length(); i++) {
+			if (i == from || distance[i] == Integer.MAX_VALUE || !known( level, i )) continue;
+			if (level.map[i] == Terrain.DOOR || level.map[i] == Terrain.OPEN_DOOR) doors.add( i );
+		}
+		doors.sort( (a, b) -> distance[a] - distance[b] );
+		return doors.subList( 0, Math.min( MAX_PLACES, doors.size() ) );
+	}
+
 	//action names allowed in the last model-mode observation, without their arguments
 	//("use" covers both "use N" and "use N on M"); for brains that constrain the model's output
 	public static volatile List<String> allowedNow = new ArrayList<>();
@@ -245,6 +281,15 @@ public class AgentObservation {
 		List<String> places = new ArrayList<>();
 		for (int cell : frontiers) places.add( (places.size() + 1) + ": " + where( level, hero.pos, cell, steps ) );
 		sb.append( "unexplored: " ).append( places.isEmpty() ? "none" : String.join( "; ", places ) ).append( '\n' );
+
+		List<String> doors = new ArrayList<>(), ways = new ArrayList<>();
+		if (Agent.positioning) {
+			for (int cell : places( level, hero.pos )) doors.add( (doors.size() + 1) + ": door, " + where( level, hero.pos, cell, steps ) );
+			sb.append( "places: " ).append( doors.isEmpty() ? "none" : String.join( "; ", doors ) ).append( '\n' );
+			for (String d : DIRECTIONS) {
+				if (canStep( level, hero.pos + offset( level, d ) )) ways.add( d );
+			}
+		}
 
 		List<String> items = new ArrayList<>();
 		for (Heap heap : loot( level, steps )) {
@@ -289,6 +334,8 @@ public class AgentObservation {
 			if (!items.isEmpty()) allowed.add( "loot N" );
 			if (!frontiers.isEmpty()) allowed.add( "explore N" );
 			if (exit != -1) allowed.add( "descend" );
+			if (!doors.isEmpty()) allowed.add( "go N" );
+			if (!ways.isEmpty()) allowed.add( "move D (D is one of " + String.join( " ", ways ) + ")" );
 			allowed.add( "use N" );
 			allowed.add( "use N on M" );
 			allowed.add( "equip N" );

@@ -40,6 +40,9 @@ public class AgentActionTest {
 		assertArrayEquals( new String[]{ "talent", "2" }, AgentAction.parse( "talent 2" ) );
 		assertArrayEquals( new String[]{ "explore", "2" }, AgentAction.parse( "Explore 2" ) );
 		assertNull( AgentAction.parse( "explore 2 steps south" ) );
+		assertArrayEquals( new String[]{ "move", "sw" }, AgentAction.parse( "move southwest" ) );
+		assertArrayEquals( new String[]{ "go", "1" }, AgentAction.parse( "[thinking] attack\n[answer]\ngo 1" ) );
+		assertNull( AgentAction.parse( "[thinking]\nattack\n[answer]\n" ) );
 	}
 
 	@Test
