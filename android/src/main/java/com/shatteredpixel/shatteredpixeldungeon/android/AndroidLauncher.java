@@ -42,6 +42,8 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.utils.GdxNativesLoader;
 import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.ShatteredPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.ai.Agent;
+import com.shatteredpixel.shatteredpixeldungeon.android.ai.AiCoreBrain;
 import com.shatteredpixel.shatteredpixeldungeon.android.ai.AiCoreLab;
 import com.shatteredpixel.shatteredpixeldungeon.android.ai.AiCoreSmokeTest;
 import com.shatteredpixel.shatteredpixeldungeon.services.news.News;
@@ -169,6 +171,14 @@ public class AndroidLauncher extends AndroidApplication {
 
 		Button.longClick = ViewConfiguration.getLongPressTimeout()/1000f;
 		
+		//adb shell am start -n <package>/.AndroidLauncher --ez ai_agent true [--es ai_pref full]
+		// lets on-device Gemini Nano play. Must be set before the first scene is created.
+		if (getIntent() != null && getIntent().getBooleanExtra("ai_agent", false)) {
+			Agent.journalDir = new java.io.File(getFilesDir(), "spd-agent").getAbsolutePath();
+			Agent.brain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
+			System.setProperty("spd.agent.autostart", "true");
+		}
+
 		initialize(new ShatteredPixelDungeon(support), config);
 
 		if (AiCoreSmokeTest.requested(getIntent())) AiCoreSmokeTest.start(this, getIntent());
