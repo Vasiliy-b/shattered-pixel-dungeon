@@ -12,6 +12,7 @@ package com.shatteredpixel.shatteredpixeldungeon.ai;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
+import com.shatteredpixel.shatteredpixeldungeon.items.food.Food;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
@@ -26,7 +27,7 @@ public class AgentAction {
 	//the action must sit on its own line; anything else in the reply (reasoning) is ignored
 	private static final Pattern LINE = Pattern.compile(
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
-					+ "|(explore|descend|attack|loot|wait|search|back))\\.?$" );
+					+ "|(explore|descend|attack|loot|eat|wait|search|back))\\.?$" );
 
 	//returns {"tap", dx, dy} or {name of a macro action}, or null when the reply has no valid action line
 	static String[] parse( String reply ) {
@@ -80,6 +81,11 @@ public class AgentAction {
 		switch (action[0]) {
 			case "wait":
 				Dungeon.hero.rest( false );
+				return "ok";
+			case "eat":
+				Food food = Dungeon.hero.belongings.getItem( Food.class );
+				if (food == null) return "error: no food";
+				food.execute( Dungeon.hero, Food.AC_EAT );
 				return "ok";
 			case "search":
 				Dungeon.hero.search( true );

@@ -19,7 +19,9 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Hunger;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Piranha;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
+import com.shatteredpixel.shatteredpixeldungeon.items.food.Food;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
@@ -54,6 +56,8 @@ public class AgentObservation {
 				&& hero.curAction == null;
 	}
 
+	private static final int PIRANHA_RANGE = 6;
+
 	//the action a hard rule chose in the last render(), null when the choice was left to the model
 	static String ruleAction;
 
@@ -80,7 +84,7 @@ public class AgentObservation {
 		if (!history.isEmpty()) sb.append( "recent: " ).append( String.join( " / ", history ) ).append( '\n' );
 		if (!log.isEmpty()) sb.append( "log: " ).append( String.join( " / ", log ) ).append( '\n' );
 
-		//Lines go from least to most urgent: a small model tends to follow the last "-> action"
+		//Lines go from least to most urgent (leave, explore, loot, fight): a small model tends to follow the last "-> action"
 		//it reads (measured on Gemini Nano 4: 10/25 correct in the reverse order, 25/25 in this one).
 		if (Agent.showMap) {
 			int w = level.width(), hx = hero.pos % w, hy = hero.pos / w, r = Agent.mapRadius;
@@ -102,6 +106,11 @@ public class AgentObservation {
 		boolean avoidFight = lowHp && nearest != null && !level.adjacent( hero.pos, nearest.pos );
 		Window window = GameScene.topWindow();
 
+		int exit = stairsDown( level );
+		sb.append( "exits: " ).append( exit == -1 ? "stairs down not found yet"
+				: "stairs down known, " + where( level, hero.pos, exit, steps )
+				+ ("descend".equals( stale ) ? "" : " -> descend") ).append( '\n' );
+
 		List<Integer> frontiers = nearestFrontiers( level, hero.pos );
 		if (frontiers.isEmpty()) {
 			sb.append( "explore: nothing left\n" );
@@ -111,11 +120,6 @@ public class AgentObservation {
 			sb.append( "explore: unexplored at " ).append( String.join( "; ", places ) )
 					.append( "explore".equals( stale ) ? "\n" : " -> explore\n" );
 		}
-
-		int exit = stairsDown( level );
-		sb.append( "exits: " ).append( exit == -1 ? "stairs down not found yet"
-				: "stairs down known, " + where( level, hero.pos, exit, steps )
-				+ ("descend".equals( stale ) ? "" : " -> descend") ).append( '\n' );
 
 		List<String> items = new ArrayList<>();
 		List<Heap> heaps = loot( level, steps );
@@ -132,6 +136,7 @@ public class AgentObservation {
 			if (mob.alignment == Char.Alignment.ENEMY) enemies.add( line + (canAttack ? " -> attack" : "") );
 			else others.add( line + (mob.alignment == Char.Alignment.ALLY ? " (ally)" : " (neutral)") );
 		}
+		int visibleEnemies = enemies.size();
 		if (!others.isEmpty()) sb.append( "others: " ).append( String.join( "; ", others ) ).append( '\n' );
 		sb.append( "enemies: " ).append( enemies.isEmpty() ? "none" : String.join( "; ", enemies ) ).append( '\n' );
 
@@ -142,13 +147,20 @@ public class AgentObservation {
 		//triggered hints sit in the observation itself: small models tend to ignore static advice
 		List<String> hints = new ArrayList<>();
 		Hunger hunger = hero.buff( Hunger.class );
+		//resting heals slowly and costs food, so only while not hungry
+		boolean rest = hero.HP * 2 < hero.HT && visibleEnemies == 0
+				&& (hunger == null || hunger.hunger() < Hunger.HUNGRY) && !"wait".equals( stale );
+		boolean hungry = hunger != null && hunger.hunger() >= Hunger.HUNGRY;
+		boolean canEat = hungry && hero.belongings.getItem( Food.class ) != null && !"eat".equals( stale );
 		if (hunger != null && hunger.isStarving()) hints.add( "starving, HP is dropping" );
-		else if (hunger != null && hunger.hunger() >= Hunger.HUNGRY) hints.add( "hungry" );
+		else if (hungry) hints.add( "hungry" );
 		for (String hint : hints) sb.append( "hint: " ).append( hint ).append( '\n' );
 
 		String reason = null;
 		if (window != null) reason = null;
 		else if (avoidFight) reason = "HP is low, stay away from the enemy";
+		else if (canEat && visibleEnemies == 0) reason = "you are hungry and have food";
+		else if (rest) reason = "HP is low and no enemy is in sight, rest";
 		else if (stale != null) reason = stale + " changed nothing, do something else";
 		else if (pacing) reason = "you keep moving back and forth, do something else";
 		else if (frontiers.isEmpty() && exit == -1 && !canAttack && heaps.isEmpty()) reason = "nothing left to explore, a door may be hidden";
@@ -157,7 +169,9 @@ public class AgentObservation {
 		ruleAction = null;
 		if (reason != null) {
 			boolean adjacent = nearest != null && level.adjacent( hero.pos, nearest.pos );
-			if (canAttack && adjacent) ruleAction = "attack";
+			if (canEat && visibleEnemies == 0) ruleAction = "eat";
+			else if (rest) ruleAction = "wait";
+			else if (canAttack && adjacent) ruleAction = "attack";
 			else if (lowHp && exit != -1 && !"descend".equals( stale )) ruleAction = "descend";
 			else if (!heaps.isEmpty() && !"loot".equals( stale )) ruleAction = "loot";
 			else if (!frontiers.isEmpty() && !"explore".equals( stale ) && !pacing) ruleAction = "explore";
@@ -184,6 +198,8 @@ public class AgentObservation {
 		Mob best = null;
 		for (Mob mob : visibleMobs( level )) {
 			if (mob.alignment != Char.Alignment.ENEMY) continue;
+			//piranhas cannot leave the water: fight one only when it is already biting
+			if (mob instanceof Piranha && !level.adjacent( from, mob.pos )) continue;
 			if (best == null || level.distance( from, mob.pos ) < level.distance( from, best.pos )) best = mob;
 		}
 		return best;
@@ -238,6 +254,13 @@ public class AgentObservation {
 	private static boolean[] walkable( Level level, int from ) {
 		boolean[] walkable = new boolean[level.length()];
 		for (int i = 0; i < walkable.length; i++) walkable[i] = known( level, i ) && level.passable[i];
+		//keep out of water a piranha can reach, whatever lies in it
+		for (Mob mob : level.mobs) {
+			if (!(mob instanceof Piranha)) continue;
+			for (int i = 0; i < walkable.length; i++) {
+				if (level.water[i] && level.distance( i, mob.pos ) <= PIRANHA_RANGE) walkable[i] = false;
+			}
+		}
 		walkable[from] = true;
 		return walkable;
 	}

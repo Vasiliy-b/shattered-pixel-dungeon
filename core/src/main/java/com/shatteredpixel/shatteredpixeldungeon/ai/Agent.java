@@ -77,6 +77,7 @@ public class Agent {
 				"attack - fight the nearest enemy\n" +
 				"loot - walk to the nearest item and pick it up\n" +
 				"descend - go to the stairs down and take them\n" +
+				"eat - eat food from the backpack\n" +
 				"wait - skip a turn\n" +
 				"search - look for hidden doors around you\n" +
 				"back - close the open window\n" +
@@ -109,13 +110,16 @@ public class Agent {
 		String clock = Dungeon.depth + ":" + Actor.now();
 		idle = clock.equals( lastClock ) ? idle + 1 : 0;
 		lastClock = clock;
-		positions.add( Dungeon.depth * 100000 + Dungeon.hero.pos );
+		//only moves are recorded: resting or searching in one place is not pacing
+		Integer place = Dungeon.depth * 100000 + Dungeon.hero.pos;
+		if (positions.isEmpty() || !place.equals( positions.get( positions.size() - 1 ) )) positions.add( place );
 		if (positions.size() > POSITIONS) positions.remove( 0 );
 
 		int places = new HashSet<>( positions ).size();
-		//standing still (resting, searching) is not pacing
-		boolean pacing = idle == 0 && positions.size() == POSITIONS && places > 1 && places <= 3
+		boolean pacing = idle == 0 && positions.size() == POSITIONS && places <= 3
 				&& AgentObservation.nearestEnemy( Dungeon.level, Dungeon.hero.pos ) == null;
+		//warn once, then give the walk another ten moves
+		if (pacing) positions.clear();
 
 		final String observation;
 		synchronized (Agent.class) {
