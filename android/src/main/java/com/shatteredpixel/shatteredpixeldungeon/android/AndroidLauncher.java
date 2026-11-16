@@ -176,11 +176,14 @@ public class AndroidLauncher extends AndroidApplication {
 		if (getIntent() != null && getIntent().getBooleanExtra("ai_agent", false)) {
 			Agent.journalDir = new java.io.File(getFilesDir(), "spd-agent").getAbsolutePath();
 			if (getIntent().getStringExtra("ai_mode") != null) Agent.mode = getIntent().getStringExtra("ai_mode");
-			Agent.brain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
+			aiBrain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
+			Agent.brain = aiBrain;
 			System.setProperty("spd.agent.autostart", "true");
 		}
 
 		initialize(new ShatteredPixelDungeon(support), config);
+
+		if (aiBrain != null) showModelReplies(aiBrain);
 
 		if (AiCoreSmokeTest.requested(getIntent())) AiCoreSmokeTest.start(this, getIntent());
 		if (AiCoreLab.requested(getIntent())) AiCoreLab.start(this);
@@ -218,4 +221,28 @@ public class AndroidLauncher extends AndroidApplication {
 		super.onMultiWindowModeChanged(isInMultiWindowMode);
 		support.updateSystemUI();
 	}
+	private AiCoreBrain aiBrain;
+
+	//a see-through text strip over the game that shows what the model just answered, reasoning included
+	private void showModelReplies( AiCoreBrain brain ) {
+		final android.widget.TextView view = new android.widget.TextView(this);
+		view.setTextColor(0xFFFFFFFF);
+		view.setBackgroundColor(0xB0000000);
+		view.setTextSize(11);
+		view.setPadding(16, 8, 16, 8);
+		view.setMaxLines(9);
+		view.setText("model: waiting for the first turn");
+		android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+				android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+				android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+				android.view.Gravity.TOP);
+		params.topMargin = (int) (getResources().getDisplayMetrics().heightPixels * 0.16f);
+		addContentView(view, params);
+		final int[] turn = {0};
+		brain.listener = ( text, latencyMs ) -> runOnUiThread(() -> {
+			turn[0]++;
+			view.setText("#" + turn[0] + "  " + latencyMs / 100 / 10f + " s\n" + text.trim());
+		});
+	}
+
 }

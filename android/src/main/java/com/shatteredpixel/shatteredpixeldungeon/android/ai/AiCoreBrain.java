@@ -53,6 +53,12 @@ public class AiCoreBrain implements Agent.Brain {
 		return t;
 	});
 
+	//gets every raw model reply (or error code) with its latency, on the worker thread
+	public interface Listener {
+		void onReply( String text, long latencyMs );
+	}
+	public Listener listener;
+
 	private final GenerativeModelFutures model;
 	private final SystemInstruction rules = new SystemInstruction(Agent.rules());
 	//in model mode the model reasons before it answers; a small output limit makes
@@ -70,6 +76,7 @@ public class AiCoreBrain implements Agent.Brain {
 	@Override
 	public void decide( String observation, Agent.Reply reply ) {
 		worker.execute(() -> {
+			long t0 = android.os.SystemClock.elapsedRealtime();
 			try {
 				GenerateContentRequest.Builder request = new GenerateContentRequest.Builder(
 						rules, new TextPart(observation));
@@ -78,8 +85,10 @@ public class AiCoreBrain implements Agent.Brain {
 				request.setMaxOutputTokens(reasoning ? 4096 : 16);
 				request.setEnableThinking(reasoning);
 				GenerateContentResponse response = model.generateContent(request.build()).get();
-				reply.accept(response.getCandidates().isEmpty()
-						? "" : response.getCandidates().get(0).getText());
+				String text = response.getCandidates().isEmpty()
+						? "" : response.getCandidates().get(0).getText();
+				show(text, t0);
+				reply.accept(text);
 			} catch (ExecutionException e) {
 				Throwable cause = e.getCause() != null ? e.getCause() : e;
 				Log.w(AiCoreSmokeTest.TAG, "decide failed", cause);
@@ -91,6 +100,7 @@ public class AiCoreBrain implements Agent.Brain {
 						sleep(Math.min(MAX_RETRY_DELAY_MS, g.getRetryDelay().toMillis()));
 					}
 				}
+				show("[" + code + "]", t0);
 				reply.fail(code);
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
@@ -100,6 +110,10 @@ public class AiCoreBrain implements Agent.Brain {
 				reply.fail(e.getClass().getSimpleName());
 			}
 		});
+	}
+
+	private void show( String text, long t0 ) {
+		if (listener != null) listener.onReply(text, android.os.SystemClock.elapsedRealtime() - t0);
 	}
 
 	private static void sleep( long ms ) {
