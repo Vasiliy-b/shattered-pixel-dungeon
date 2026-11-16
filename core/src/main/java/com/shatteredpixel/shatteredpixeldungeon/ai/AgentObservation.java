@@ -61,6 +61,7 @@ public class AgentObservation {
 	}
 
 	private static final int PIRANHA_RANGE = 6;
+	private static final int MAX_LOOT_WALK = 12;
 
 	//explore targets that the walk could not make progress towards, as depth * 100000 + cell
 	static final Set<Integer> deadEnds = new HashSet<>();
@@ -89,7 +90,18 @@ public class AgentObservation {
 		}
 		if (!status.isEmpty()) sb.append( "status: " ).append( String.join( ", ", status ) ).append( '\n' );
 
-		if (!history.isEmpty()) sb.append( "recent: " ).append( String.join( " / ", history ) ).append( '\n' );
+		//repeats are folded: a word said three times in a row gets echoed by a small model
+		List<String> recent = new ArrayList<>();
+		int repeats = 1;
+		for (int i = 0; i < history.size(); i++) {
+			if (i + 1 < history.size() && history.get( i ).equals( history.get( i + 1 ) )) {
+				repeats++;
+			} else {
+				recent.add( history.get( i ) + (repeats > 1 ? " x" + repeats : "") );
+				repeats = 1;
+			}
+		}
+		if (!recent.isEmpty()) sb.append( "recent: " ).append( String.join( " / ", recent ) ).append( '\n' );
 		if (!log.isEmpty()) sb.append( "log: " ).append( String.join( " / ", log ) ).append( '\n' );
 
 		//Lines go from least to most urgent (leave, explore, loot, fight): a small model tends to follow the last "-> action"
@@ -121,11 +133,12 @@ public class AgentObservation {
 
 		List<Integer> frontiers = nearestFrontiers( level, hero.pos );
 		if (frontiers.isEmpty()) {
-			sb.append( "explore: nothing left\n" );
+			//no action word in a line that offers no action (the model was seen answering "explore" to it)
+			sb.append( "unexplored: none\n" );
 		} else {
 			List<String> places = new ArrayList<>();
 			for (int cell : frontiers) places.add( where( level, hero.pos, cell, steps ) );
-			sb.append( "explore: unexplored at " ).append( String.join( "; ", places ) )
+			sb.append( "unexplored: " ).append( String.join( "; ", places ) )
 					.append( banned.contains( "explore" ) ? "\n" : " -> explore\n" );
 		}
 
@@ -237,7 +250,8 @@ public class AgentObservation {
 	static List<Heap> loot( Level level, int[] steps ) {
 		List<Heap> heaps = new ArrayList<>();
 		for (Heap heap : level.heaps.valueList()) {
-			if (heap.seen && steps[heap.pos] != Integer.MAX_VALUE
+			//a long walk for an ordinary item costs more food than it is worth
+			if (heap.seen && steps[heap.pos] <= (rank( heap, steps ) == 2 ? MAX_LOOT_WALK : Integer.MAX_VALUE - 1)
 					&& (heap.type == Heap.Type.HEAP || heap.type == Heap.Type.CHEST)) heaps.add( heap );
 		}
 		//what the hero stands on, then what keeps it alive, then the rest; nearest first within each

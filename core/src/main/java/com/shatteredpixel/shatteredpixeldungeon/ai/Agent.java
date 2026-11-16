@@ -72,6 +72,8 @@ public class Agent {
 	private static final Map<String, Integer> bans = new HashMap<>();
 	private static final int PACING_BAN = 5;
 	private static int missedFrontier = -1;
+	//the last action was refused by the game ("error: ...") rather than played without effect
+	private static boolean lastFailed;
 	private static int idle;
 	private static int turn;
 
@@ -122,7 +124,7 @@ public class Agent {
 		lastClock = clock;
 		//an explore target that got the hero nowhere is dropped, so explore tries the next one
 		String why = null;
-		if (idle > 0 && "explore".equals( lastAction )) {
+		if (idle > 0 && "explore".equals( lastAction ) && !lastFailed) {
 			//one miss can be a hiccup (seen right after a kill), two in a row to the same place is a dead end
 			if (AgentObservation.lastFrontier == missedFrontier) {
 				AgentObservation.deadEnds.add( Dungeon.depth * 100000 + missedFrontier );
@@ -130,7 +132,7 @@ public class Agent {
 			missedFrontier = AgentObservation.lastFrontier;
 		} else if (idle > 0 && lastAction != null) {
 			bans.put( lastAction, turn + 1 );
-			why = lastAction + " changed nothing, do something else";
+			why = lastAction + (lastFailed ? " is not possible now" : " changed nothing") + ", do something else";
 		}
 
 		//only moves are recorded: resting or searching in one place is not pacing
@@ -201,6 +203,7 @@ public class Agent {
 			if (forced) action = GameScene.topWindow() != null ? "back" : "wait";
 			else if (!valid) action = AgentAction.fallback();
 			result = AgentAction.apply( action );
+			lastFailed = result.startsWith( "error" );
 			if (!action.equals( lastAction )) prevAction = lastAction;
 			lastAction = action;
 
