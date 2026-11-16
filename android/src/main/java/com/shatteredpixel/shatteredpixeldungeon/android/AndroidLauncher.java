@@ -176,6 +176,8 @@ public class AndroidLauncher extends AndroidApplication {
 		if (getIntent() != null && getIntent().getBooleanExtra("ai_agent", false)) {
 			Agent.journalDir = new java.io.File(getFilesDir(), "spd-agent").getAbsolutePath();
 			if (getIntent().getStringExtra("ai_mode") != null) Agent.mode = getIntent().getStringExtra("ai_mode");
+			//--ez ai_pure true: no nudges after a refused action and no fact notes, the model is on its own
+			if (getIntent().getBooleanExtra("ai_pure", false)) Agent.nudge = Agent.notes = false;
 			aiBrain = new AiCoreBrain("full".equals(getIntent().getStringExtra("ai_pref")));
 			Agent.brain = aiBrain;
 			System.setProperty("spd.agent.autostart", "true");
