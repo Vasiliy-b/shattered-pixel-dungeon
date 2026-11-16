@@ -38,6 +38,8 @@ public class AgentActionTest {
 		assertArrayEquals( new String[]{ "use", "4", "on", "1" }, AgentAction.parse( "I upgrade.\nuse 4 on 1" ) );
 		assertNull( AgentAction.parse( "use golden potion" ) );
 		assertArrayEquals( new String[]{ "talent", "2" }, AgentAction.parse( "talent 2" ) );
+		assertArrayEquals( new String[]{ "explore", "2" }, AgentAction.parse( "Explore 2" ) );
+		assertNull( AgentAction.parse( "explore 2 steps south" ) );
 	}
 
 	@Test

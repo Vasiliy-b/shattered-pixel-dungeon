@@ -31,8 +31,8 @@ public class AgentAction {
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
 					+ "|(use)\\s+(\\d{1,2})(?:\\s+on\\s+(\\d{1,2}))?"
 					+ "|(equip|throw|talent)\\s+(\\d{1,2})"
-					+ "|(loot)(?:\\s+(\\d{1,2}))?"
-					+ "|(explore|descend|attack|eat|heal|rest|wait|search|back))\\.?$" );
+					+ "|(loot|explore)(?:\\s+(\\d{1,2}))?"
+					+ "|(descend|attack|eat|heal|rest|wait|search|back))\\.?$" );
 
 	//returns the action as words ({"tap", dx, dy}, {"use", n}, {"use", n, "on", m}, {"explore"}), or null when the reply has no valid action line
 	static String[] parse( String reply ) {
@@ -47,8 +47,8 @@ public class AgentAction {
 			else if (m.group( 4 ) != null && m.group( 6 ) != null) found = new String[]{ "use", m.group( 5 ), "on", m.group( 6 ) };
 			else if (m.group( 4 ) != null) found = new String[]{ "use", m.group( 5 ) };
 			else if (m.group( 7 ) != null) found = new String[]{ m.group( 7 ), m.group( 8 ) };
-			else if (m.group( 9 ) != null && m.group( 10 ) != null) found = new String[]{ "loot", m.group( 10 ) };
-			else if (m.group( 9 ) != null) found = new String[]{ "loot" };
+			else if (m.group( 9 ) != null && m.group( 10 ) != null) found = new String[]{ m.group( 9 ), m.group( 10 ) };
+			else if (m.group( 9 ) != null) found = new String[]{ m.group( 9 ) };
 			else found = new String[]{ m.group( 11 ) };
 		}
 		return found;
@@ -121,8 +121,11 @@ public class AgentAction {
 				//the walk stops by itself when the hero notices a new enemy, like any tap-to-move
 				List<Integer> frontiers = AgentObservation.nearestFrontiers( level, pos );
 				if (frontiers.isEmpty()) return "error: nothing left to explore";
-				AgentObservation.lastFrontier = frontiers.get( 0 );
-				GameScene.handleCell( frontiers.get( 0 ) );
+				//explore N goes to the Nth place the observation listed, plain explore to the nearest
+				int place = action.length > 1 ? Integer.parseInt( action[1] ) : 1;
+				if (place < 1 || place > frontiers.size()) return "error: no unexplored place " + place;
+				AgentObservation.lastFrontier = frontiers.get( place - 1 );
+				GameScene.handleCell( frontiers.get( place - 1 ) );
 				return "ok";
 			case "attack":
 				Mob enemy = AgentObservation.nearestEnemy( level, pos );

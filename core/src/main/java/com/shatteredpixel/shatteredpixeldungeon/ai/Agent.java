@@ -114,7 +114,7 @@ public class Agent {
 			return "You play the roguelike Shattered Pixel Dungeon as a warrior. Goal: survive and go as deep as you can.\n" +
 					"Each turn you get the game state. Think in a few short lines, then write one action alone on the last line.\n" +
 					"Actions:\n" +
-					"explore - walk to the nearest unexplored place\n" +
+					"explore N - walk to unexplored place number N\n" +
 					"attack - fight the nearest enemy\n" +
 					"loot N - walk to item number N on the floor and pick it up\n" +
 					"descend - go to the stairs down and take them\n" +

@@ -229,6 +229,10 @@ public class AgentObservation {
 		return sb.toString();
 	}
 
+	//action names allowed in the last model-mode observation, without their arguments
+	//("use" covers both "use N" and "use N on M"); for brains that constrain the model's output
+	public static volatile List<String> allowedNow = new ArrayList<>();
+
 	//Model mode: the same state as facts, with no arrows, no hints and no order of urgency.
 	//What to do about it is left to the model.
 	private static void renderFacts( StringBuilder sb, Level level, Hero hero, int[] steps, String why ) {
@@ -239,12 +243,12 @@ public class AgentObservation {
 
 		List<Integer> frontiers = nearestFrontiers( level, hero.pos );
 		List<String> places = new ArrayList<>();
-		for (int cell : frontiers) places.add( where( level, hero.pos, cell, steps ) );
+		for (int cell : frontiers) places.add( (places.size() + 1) + ": " + where( level, hero.pos, cell, steps ) );
 		sb.append( "unexplored: " ).append( places.isEmpty() ? "none" : String.join( "; ", places ) ).append( '\n' );
 
 		List<String> items = new ArrayList<>();
 		for (Heap heap : loot( level, steps )) {
-			items.add( (items.size() + 1) + " " + heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
+			items.add( (items.size() + 1) + ": " + heap.title() + ", " + where( level, hero.pos, heap.pos, steps ) );
 		}
 		sb.append( "items on the floor: " ).append( items.isEmpty() ? "none" : String.join( "; ", items ) ).append( '\n' );
 
@@ -283,7 +287,7 @@ public class AgentObservation {
 				allowed.add( "throw N" );
 			}
 			if (!items.isEmpty()) allowed.add( "loot N" );
-			if (!frontiers.isEmpty()) allowed.add( "explore" );
+			if (!frontiers.isEmpty()) allowed.add( "explore N" );
 			if (exit != -1) allowed.add( "descend" );
 			allowed.add( "use N" );
 			allowed.add( "use N on M" );
@@ -294,6 +298,12 @@ public class AgentObservation {
 			allowed.add( "search" );
 		}
 		sb.append( "Allowed now: " ).append( String.join( ", ", allowed ) ).append( '\n' );
+		List<String> names = new ArrayList<>();
+		for (String entry : allowed) {
+			String name = entry.split( " " )[0];
+			if (!names.contains( name )) names.add( name );
+		}
+		allowedNow = names;
 		sb.append( "\nYour reasoning, then the action on the last line:" );
 	}
 

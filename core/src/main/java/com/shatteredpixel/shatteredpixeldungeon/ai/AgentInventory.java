@@ -48,7 +48,7 @@ public class AgentInventory {
 		List<Item> items = items( hero );
 		for (int i = 0; i < items.size(); i++) {
 			Item item = items.get( i );
-			out.add( (i + 1) + " " + item.title() + (item.isEquipped( hero ) ? " (equipped)" : "") );
+			out.add( (i + 1) + ": " + item.title() + (item.isEquipped( hero ) ? " (equipped)" : "") );
 		}
 		return String.join( "; ", out );
 	}
@@ -74,7 +74,7 @@ public class AgentInventory {
 			Talent talent = open.get( i );
 			String desc = talent.desc().replace( "_", "" ).replaceAll( "\\s+", " " ).trim();
 			if (desc.length() > 200) desc = desc.substring( 0, 200 ) + "...";
-			out.add( (i + 1) + " " + talent.title() + " " + hero.pointsInTalent( talent ) + "/" + talent.maxPoints() + ": " + desc );
+			out.add( (i + 1) + ": " + talent.title() + " " + hero.pointsInTalent( talent ) + "/" + talent.maxPoints() + ": " + desc );
 		}
 		return String.join( "; ", out );
 	}
