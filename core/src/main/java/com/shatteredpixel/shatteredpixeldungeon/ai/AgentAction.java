@@ -30,7 +30,7 @@ public class AgentAction {
 	private static final Pattern LINE = Pattern.compile(
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
 					+ "|(use)\\s+(\\d{1,2})(?:\\s+on\\s+(\\d{1,2}))?"
-					+ "|(equip|throw)\\s+(\\d{1,2})"
+					+ "|(equip|throw|talent)\\s+(\\d{1,2})"
 					+ "|(loot)(?:\\s+(\\d{1,2}))?"
 					+ "|(explore|descend|attack|eat|heal|rest|wait|search|back))\\.?$" );
 
@@ -148,6 +148,8 @@ public class AgentAction {
 						: AgentInventory.use( Integer.parseInt( action[1] ) );
 			case "equip":
 				return AgentInventory.equip( Integer.parseInt( action[1] ) );
+			case "talent":
+				return AgentInventory.talent( Integer.parseInt( action[1] ) );
 			case "throw":
 				return AgentInventory.throwAt( Integer.parseInt( action[1] ) );
 			default:

@@ -10,7 +10,9 @@
 package com.shatteredpixel.shatteredpixeldungeon.ai;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
+import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.items.EquipableItem;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
@@ -49,6 +51,44 @@ public class AgentInventory {
 			out.add( (i + 1) + " " + item.title() + (item.isEquipped( hero ) ? " (equipped)" : "") );
 		}
 		return String.join( "; ", out );
+	}
+
+	//talents a point can be spent on right now, in tier order; empty when there is no point to spend
+	static List<Talent> talents( Hero hero ) {
+		List<Talent> open = new ArrayList<>();
+		for (int tier = 1; tier <= hero.talents.size(); tier++) {
+			if (hero.talentPointsAvailable( tier ) <= 0) continue;
+			for (Talent talent : hero.talents.get( tier - 1 ).keySet()) {
+				if (hero.pointsInTalent( talent ) < talent.maxPoints()) open.add( talent );
+			}
+		}
+		return open;
+	}
+
+	//"1 Hearty Meal 0/2: <what it does>; 2 ...", or null when there is no point to spend
+	static String renderTalents( Hero hero ) {
+		List<Talent> open = talents( hero );
+		if (open.isEmpty()) return null;
+		List<String> out = new ArrayList<>();
+		for (int i = 0; i < open.size(); i++) {
+			Talent talent = open.get( i );
+			String desc = talent.desc().replace( "_", "" ).replaceAll( "\\s+", " " ).trim();
+			if (desc.length() > 200) desc = desc.substring( 0, 200 ) + "...";
+			out.add( (i + 1) + " " + talent.title() + " " + hero.pointsInTalent( talent ) + "/" + talent.maxPoints() + ": " + desc );
+		}
+		return String.join( "; ", out );
+	}
+
+	//spend a talent point on talent N of the list shown in the observation
+	static String talent( int number ) {
+		Hero hero = Dungeon.hero;
+		List<Talent> open = talents( hero );
+		if (open.isEmpty()) return "error: no talent point to spend";
+		if (number < 1 || number > open.size()) return "error: no talent " + number;
+		hero.upgradeTalent( open.get( number - 1 ) );
+		//the game does the same when a point is spent by hand
+		Statistics.qualifiedForRandomVictoryBadge = false;
+		return "ok";
 	}
 
 	private static Item pick( Hero hero, int number ) {

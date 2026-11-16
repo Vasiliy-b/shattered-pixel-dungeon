@@ -33,7 +33,8 @@ public class ScriptedBrain implements Agent.Brain {
 			action = script.poll();
 		} else if (allowed != -1) {
 			//model mode has no arrows: take the first allowed action
-			action = observation.substring( allowed + 13, observation.indexOf( '\n', allowed ) ).split( ", " )[0];
+			String list = observation.substring( allowed + 13, observation.indexOf( '\n', allowed ) );
+			action = list.contains( "talent N" ) ? "talent 1" : list.split( ", " )[0].replace( " N", " 1" );
 		} else if (last != null) {
 			action = last;
 		}

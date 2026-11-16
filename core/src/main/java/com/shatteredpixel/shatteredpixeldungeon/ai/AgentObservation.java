@@ -91,6 +91,8 @@ public class AgentObservation {
 		}
 		if (!status.isEmpty()) sb.append( "status: " ).append( String.join( ", ", status ) ).append( '\n' );
 		if (facts) sb.append( "inventory: " ).append( AgentInventory.render( hero ) ).append( '\n' );
+		String talents = facts ? AgentInventory.renderTalents( hero ) : null;
+		if (talents != null) sb.append( "talent point to spend, talents: " ).append( talents ).append( '\n' );
 
 		//repeats are folded: a word said three times in a row gets echoed by a small model
 		List<String> recent = new ArrayList<>();
@@ -286,6 +288,7 @@ public class AgentObservation {
 			allowed.add( "use N" );
 			allowed.add( "use N on M" );
 			allowed.add( "equip N" );
+			if (!AgentInventory.talents( hero ).isEmpty()) allowed.add( "talent N" );
 			allowed.add( "rest" );
 			allowed.add( "wait" );
 			allowed.add( "search" );

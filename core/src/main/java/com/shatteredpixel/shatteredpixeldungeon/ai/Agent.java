@@ -120,8 +120,9 @@ public class Agent {
 					"descend - go to the stairs down and take them\n" +
 					"use N - eat, drink or read inventory item number N\n" +
 					"use N on M - read scroll of upgrade N on item M\n" +
-					"equip N - equip item N\n" +
-					"throw N - throw item N at the nearest enemy\n" +
+					"equip N - equip inventory item number N\n" +
+					"throw N - throw inventory item number N at the nearest enemy\n" +
+					"talent N - spend a talent point on talent number N\n" +
 					"rest - rest until HP recovers or something happens\n" +
 					"wait - skip a turn\n" +
 					"search - walk along the walls looking for hidden doors\n" +
@@ -270,6 +271,8 @@ public class Agent {
 			} else {
 				result = AgentAction.apply( action );
 				lastFailed = result.startsWith( "error" );
+				//spending a talent point takes no game time and is still progress
+				if (action.startsWith( "talent" ) && !lastFailed) lastClock = null;
 				if (!action.equals( lastAction )) prevAction = lastAction;
 				lastAction = action;
 				history.add( (valid ? action : "invalid reply, played " + action) + " -> " + result );
