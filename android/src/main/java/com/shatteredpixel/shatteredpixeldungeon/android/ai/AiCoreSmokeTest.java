@@ -255,7 +255,7 @@ public class AiCoreSmokeTest implements Runnable {
 		return value;
 	}
 
-	private static void describe( JSONObject o, Throwable t ) {
+	static void describe( JSONObject o, Throwable t ) {
 		put(o, "error", t.getClass().getSimpleName() + ": " + t.getMessage());
 		if (t instanceof GenAiException) {
 			GenAiException g = (GenAiException) t;
@@ -266,7 +266,7 @@ public class AiCoreSmokeTest implements Runnable {
 		}
 	}
 
-	private static void put( JSONObject o, String key, Object value ) {
+	static void put( JSONObject o, String key, Object value ) {
 		try {
 			o.put(key, value);
 		} catch (JSONException e) {

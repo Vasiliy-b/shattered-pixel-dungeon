@@ -42,6 +42,7 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.utils.GdxNativesLoader;
 import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.ShatteredPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.android.ai.AiCoreLab;
 import com.shatteredpixel.shatteredpixeldungeon.android.ai.AiCoreSmokeTest;
 import com.shatteredpixel.shatteredpixeldungeon.services.news.News;
 import com.shatteredpixel.shatteredpixeldungeon.services.news.NewsImpl;
@@ -171,6 +172,7 @@ public class AndroidLauncher extends AndroidApplication {
 		initialize(new ShatteredPixelDungeon(support), config);
 
 		if (AiCoreSmokeTest.requested(getIntent())) AiCoreSmokeTest.start(this, getIntent());
+		if (AiCoreLab.requested(getIntent())) AiCoreLab.start(this);
 		
 	}
 
