@@ -85,6 +85,9 @@ public class Agent {
 	//model mode: the model may choose where to stand ("places" line, go N, move D); off by default
 	public static boolean positioning = Boolean.getBoolean( "spd.agent.positioning" );
 
+	//model mode: the talent line carries what each talent does (on) or only the names (off)
+	public static boolean talentDetails = !"false".equals( System.getProperty( "spd.agent.talentdetails" ) );
+
 	//model mode switches, both on by default:
 	//nudge - the note that the last action did nothing or is not possible, or that the hero paces
 	public static boolean nudge = !"false".equals( System.getProperty( "spd.agent.nudge" ) );

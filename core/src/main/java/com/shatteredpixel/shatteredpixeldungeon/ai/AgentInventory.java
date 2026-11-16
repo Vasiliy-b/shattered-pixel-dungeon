@@ -74,7 +74,9 @@ public class AgentInventory {
 			Talent talent = open.get( i );
 			String desc = talent.desc().replace( "_", "" ).replaceAll( "\\s+", " " ).trim();
 			if (desc.length() > 200) desc = desc.substring( 0, 200 ) + "...";
-			out.add( (i + 1) + ": " + talent.title() + " " + hero.pointsInTalent( talent ) + "/" + talent.maxPoints() + ": " + desc );
+			//the short form leaves what each talent does to the guide: a long line can bury the prompt to act
+			out.add( (i + 1) + ": " + talent.title() + " " + hero.pointsInTalent( talent ) + "/" + talent.maxPoints()
+					+ (Agent.talentDetails ? ": " + desc : "") );
 		}
 		return String.join( "; ", out );
 	}
