@@ -33,6 +33,7 @@ public class AgentActionTest {
 		assertArrayEquals( new String[]{ "loot" }, AgentAction.parse( "loot" ) );
 		assertArrayEquals( new String[]{ "eat" }, AgentAction.parse( "Action: eat." ) );
 		assertArrayEquals( new String[]{ "heal" }, AgentAction.parse( "heal" ) );
+		assertArrayEquals( new String[]{ "rest" }, AgentAction.parse( "rest" ) );
 	}
 
 	@Test

@@ -175,7 +175,7 @@ public class AgentObservation {
 		Hunger hunger = hero.buff( Hunger.class );
 		//resting heals slowly and costs food, so only while not hungry
 		boolean rest = hero.HP * 2 < hero.HT && visibleEnemies == 0
-				&& (hunger == null || hunger.hunger() < Hunger.HUNGRY) && !banned.contains( "wait" );
+				&& (hunger == null || hunger.hunger() < Hunger.HUNGRY) && !banned.contains( "rest" );
 		boolean hungry = hunger != null && hunger.hunger() >= Hunger.HUNGRY;
 		boolean canEat = hungry && hero.belongings.getItem( Food.class ) != null && !banned.contains( "eat" );
 		if (hunger != null && hunger.isStarving()) hints.add( "starving, HP is dropping" );
@@ -206,7 +206,7 @@ public class AgentObservation {
 			else if (grabPotion) ruleAction = "loot";
 			else if (here && !adjacent && !banned.contains( "loot" )) ruleAction = "loot";
 			else if (canEat && visibleEnemies == 0) ruleAction = "eat";
-			else if (rest) ruleAction = "wait";
+			else if (rest) ruleAction = "rest";
 			else if (canAttack && adjacent) ruleAction = "attack";
 			else if (lowHp && exit != -1 && !banned.contains( "descend" )) ruleAction = "descend";
 			else if (!heaps.isEmpty() && !banned.contains( "loot" )) ruleAction = "loot";
@@ -264,6 +264,55 @@ public class AgentObservation {
 		if (steps[heap.pos] == 0) return 0;
 		Item top = heap.type == Heap.Type.HEAP ? heap.peek() : null;
 		return top instanceof Food || healing( top ) ? 1 : 2;
+	}
+
+	//A full rest goes on until something disturbs it; the Agent loop ends it at two thirds HP or hunger.
+	static boolean restedEnough( Hero hero ) {
+		Hunger hunger = hero.buff( Hunger.class );
+		return hero.HP * 3 >= hero.HT * 2 || (hunger != null && hunger.hunger() >= Hunger.HUNGRY);
+	}
+
+	//wall cells already checked for hidden doors, as depth * 100000 + cell
+	static final Set<Integer> searched = new HashSet<>();
+
+	private static boolean unsearchedWall( Level level, int cell ) {
+		for (int n : PathFinder.NEIGHBOURS8) {
+			int c = cell + n;
+			if (c < 0 || c >= level.length() || !known( level, c )) continue;
+			int t = level.map[c];
+			//a hidden door looks like a wall
+			if ((t == Terrain.WALL || t == Terrain.WALL_DECO || t == Terrain.SECRET_DOOR)
+					&& !searched.contains( Dungeon.depth * 100000 + c )) return true;
+		}
+		return false;
+	}
+
+	//Where to search next: the hero's own cell if walls around it are unchecked, else the nearest
+	//reachable cell with unchecked walls, corridor dead ends first (that is where hidden doors
+	//usually are). -1 when every reachable wall has been checked.
+	static int searchSpot( Level level, int from ) {
+		if (unsearchedWall( level, from )) return from;
+		boolean[] walkable = walkable( level, from );
+		int[] distance = stepsFrom( level, from );
+		int best = -1, bestScore = Integer.MAX_VALUE;
+		for (int i = 0; i < walkable.length; i++) {
+			if (!walkable[i] || distance[i] == Integer.MAX_VALUE || !unsearchedWall( level, i )) continue;
+			int exits = 0;
+			for (int n : PathFinder.NEIGHBOURS4) {
+				int c = i + n;
+				if (c >= 0 && c < walkable.length && walkable[c]) exits++;
+			}
+			int score = distance[i] + (exits == 1 ? 0 : 1000);
+			if (score < bestScore) {
+				bestScore = score;
+				best = i;
+			}
+		}
+		return best;
+	}
+
+	static void markSearched( Level level, int from ) {
+		for (int n : PathFinder.NEIGHBOURS8) searched.add( Dungeon.depth * 100000 + from + n );
 	}
 
 	//a healing potion the hero would recognise

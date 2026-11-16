@@ -29,7 +29,7 @@ public class AgentAction {
 	//the action must sit on its own line; anything else in the reply (reasoning) is ignored
 	private static final Pattern LINE = Pattern.compile(
 			"^(?:action:\\s*)?(?:(tap)\\s*\\(?\\s*([+-]?\\d{1,3})\\s*[,\\s]\\s*([+-]?\\d{1,3})\\s*\\)?"
-					+ "|(explore|descend|attack|loot|eat|heal|wait|search|back))\\.?$" );
+					+ "|(explore|descend|attack|loot|eat|heal|rest|wait|search|back))\\.?$" );
 
 	//returns {"tap", dx, dy} or {name of a macro action}, or null when the reply has no valid action line
 	static String[] parse( String reply ) {
@@ -95,8 +95,19 @@ public class AgentAction {
 				if (!AgentObservation.healing( potion )) return "error: no healing potion";
 				potion.execute( Dungeon.hero, Potion.AC_DRINK );
 				return "ok";
+			case "rest":
+				Dungeon.hero.rest( true );
+				return "ok";
 			case "search":
-				Dungeon.hero.search( true );
+				//searching covers only the cells next to the hero, so it has to move along the walls
+				int spot = AgentObservation.searchSpot( level, pos );
+				if (spot == -1) return "error: every wall in reach has been searched";
+				if (spot == pos) {
+					AgentObservation.markSearched( level, pos );
+					Dungeon.hero.search( true );
+				} else {
+					GameScene.handleCell( spot );
+				}
 				return "ok";
 			case "explore":
 				//the walk stops by itself when the hero notices a new enemy, like any tap-to-move

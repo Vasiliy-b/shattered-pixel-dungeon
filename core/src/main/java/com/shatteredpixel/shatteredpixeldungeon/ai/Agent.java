@@ -88,8 +88,9 @@ public class Agent {
 				"descend - go to the stairs down and take them\n" +
 				"eat - eat food from the backpack\n" +
 				"heal - drink a healing potion\n" +
+				"rest - rest until HP recovers or something happens\n" +
 				"wait - skip a turn\n" +
-				"search - look for hidden doors around you\n" +
+				"search - walk along the walls looking for hidden doors\n" +
 				"back - close the open window\n" +
 				(allowTap ? "tap DX DY - act on a cell like a screen tap; (DX,DY) is relative to you, " +
 						"DX grows to the right, DY grows down\n" : "") +
@@ -107,12 +108,16 @@ public class Agent {
 	//hooked into GameScene.update()
 	public static void tick() {
 		if (brain == null || waiting) return;
+		if (Dungeon.hero != null && Dungeon.hero.resting && AgentObservation.restedEnough( Dungeon.hero )) {
+			Dungeon.hero.resting = false;
+		}
 
 		if (Dungeon.hero != null && !Dungeon.hero.isAlive()) {
 			if (!deathLogged) journal( "\"event\":\"dead\"" );
 			deathLogged = true;
 			//the next run has new levels
 			AgentObservation.deadEnds.clear();
+			AgentObservation.searched.clear();
 			return;
 		}
 		if (!AgentObservation.inputReady()) return;
