@@ -97,16 +97,23 @@ public class Agent {
 		return "model".equals( mode );
 	}
 
-	//play advice for model mode; kept to what the action set can carry out
-	public static String guide =
-			"- Put every scroll of upgrade into the same one or two items: armor first, then the weapon.\n" +
-			"- Drink a healing potion before HP gets critical. Eat when hungry.\n" +
-			"- Unknown potions and scrolls are identified by using them: do it with high HP and no enemy near.\n" +
-			"- Fight in doorways and corridors so only one enemy reaches you.\n" +
-			"- An enemy that has not noticed you or is still far: wait for it to come, then the first hit is yours. " +
-			"Snakes dodge most hits unless surprised.\n" +
-			"- Explore the whole floor and pick up items before going down. Rest when HP is low and no enemy is near.\n" +
-			"- Equip better weapons and armor you find if your strength allows.\n";
+	//Play advice for model mode: "short" (a few lines), "full" (enemies, upgrades, identification,
+	//hunger, talents; numbers taken from the game's own code) or "none". Texts are in assets/ai.
+	public static String guideSize = System.getProperty( "spd.agent.guide", "short" );
+	//set to replace the bundled text altogether
+	public static String guide;
+
+	private static String guideText() {
+		if (guide != null) return guide;
+		if ("none".equals( guideSize )) return "";
+		String file = "ai/guide_" + ("full".equals( guideSize ) ? "full" : "short") + ".txt";
+		if (!file.equals( loadedFile )) {
+			loadedGuide = Gdx.files.internal( file ).readString( "UTF-8" );
+			loadedFile = file;
+		}
+		return loadedGuide;
+	}
+	private static String loadedFile, loadedGuide;
 
 	//static part of the prompt: keep it as an unchanging prefix so the model's KV cache is reused
 	public static String rules() {
@@ -127,7 +134,7 @@ public class Agent {
 					"wait - skip a turn\n" +
 					"search - walk along the walls looking for hidden doors\n" +
 					"back - close the open window\n" +
-					"Advice:\n" + guide;
+					(guideText().isEmpty() ? "" : "Advice:\n" + guideText());
 		}
 		return "You play the roguelike Shattered Pixel Dungeon. Goal: survive and go as deep as you can.\n" +
 				"Each turn you get the game state. Lines ending with \"-> action\" show what that action would do; a hint line overrides the others.\n" +
@@ -289,12 +296,14 @@ public class Agent {
 				+ ",\"depth\":" + Dungeon.depth
 				+ ",\"hp\":" + Dungeon.hero.HP + ",\"ht\":" + Dungeon.hero.HT
 				+ ",\"obs_chars\":" + observation.length()
+				+ ",\"rules_chars\":" + rules().length()
 				+ ",\"reply\":" + quote( reply )
 				+ ",\"action\":" + quote( action )
 				+ ",\"valid\":" + valid
 				+ ",\"forced\":" + forced
 				+ ",\"decider\":" + quote( decider )
 				+ ",\"mode\":" + quote( mode )
+				+ ",\"guide\":" + quote( guide != null ? "custom" : guideSize )
 				+ ",\"echo\":" + echo( observation, action )
 				+ ",\"result\":" + quote( result )
 				+ ",\"latency_ms\":" + latencyMs

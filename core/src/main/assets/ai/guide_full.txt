@@ -1,0 +1,66 @@
+You and your numbers
+- You start with 20 HP, strength 10, a worn shortsword, cloth armor, one ration of food, a waterskin and throwing stones.
+- Each level gives +5 max HP and heals 5. Killing weak enemies on early floors is how you level: aim for at least one level per floor.
+- You already recognise the potion of healing. So an unknown potion is never healing.
+- Armor subtracts a random amount from every melee hit. Better or upgraded armor is the main way to survive deeper.
+- A weapon or armor needs strength: tier 1 needs 10, tier 2 needs 12, tier 3 needs 14. Each missing point makes you much worse. Never equip gear that needs 2 or more strength than you have.
+
+Hitting and missing
+- Your chance to hit at level 1: rat 90%, gnoll scout 80%, crab, slime and swarm 75%, skeleton 55%, guard 50%, thief 42%, snake 20%.
+- An enemy that has not noticed you, or is asleep, is always hit. Throwing an item at an unaware enemy is a guaranteed hit.
+- Walking up to a sleeping enemy usually wakes it before you strike. A thrown stone does not need you to come close.
+- An enemy that chases you through a doorway can be hit for sure right after it steps through.
+
+Enemies on floors 1-5
+- Marsupial rat: 8 HP, weak. Fight it anywhere.
+- Sewer snake: 4 HP, dodges 4 of 5 ordinary hits, dies to one hit. Do not trade blows with it for long: throw stones at it while it is unaware, or leave it.
+- Gnoll scout: 12 HP, hits for 1-6. Ordinary fight.
+- Sewer crab: 15 HP, hits for 1-7, moves twice as fast as you. You cannot run from it: fight.
+- Swarm of flies: 50 HP, splits in two when hit. Fight it in a corridor or doorway, not in an open room.
+- Slime: 20 HP, big hits are wasted on it, many small hits are as good.
+- Giant piranha: lives only in water, very dangerous. Stay out of water where one swims.
+- Goo, the boss of floor 5: 100 HP. It heals while standing in water. When the log shows it is pumping up, its next hit is three times stronger: that is the moment to drink a healing potion if HP is low. Come with full HP, a healing potion and upgraded armor. Floor 5 has no other enemies.
+
+Enemies on floors 6-10
+- Skeleton: 25 HP, hits for 2-10. When it dies it explodes for 6-12 damage to everyone next to it. Do not land the killing blow in melee when your HP is 13 or less: throw something to finish it, or heal first.
+- Crazy thief: steals one item from your backpack and runs. Kill it to get the item back. Read scrolls of upgrade before floor 6 so they cannot be stolen.
+- DM-100: shoots lightning from range that ignores armor. Close in and fight it in melee at once.
+- Prison guard: 40 HP, hits for 4-12, tough armor. Fight it at full HP.
+- Necromancer: never fights, summons a skeleton next to you. Kill the necromancer first and its skeleton dies with it.
+- Tengu, the boss of floor 10: 200 HP. Needs 40 or more HP, strong armor and healing potions.
+
+Upgrades and strength
+- Each group of five floors holds 3 scrolls of upgrade and 2 potions of strength, on floors 1-4 and 6-9. Boss floors 5 and 10 hold none. Explore those floors fully or you will miss them.
+- Drink every potion of strength at once.
+- Use every scroll of upgrade on the body armor you wear: use N on M with M the armor. Concentrated upgrades also lower the armor's strength requirement.
+- A found weapon or armor of higher tier is better only if your strength meets its requirement.
+- Unknown weapons and armor can be cursed. Equip them only when no enemy is in sight.
+
+Unknown potions and scrolls
+- Using an unknown potion or scroll identifies it. Do it on floors 1-3, at full HP, with no enemy in sight.
+- Good potions: strength, healing, experience (+1 level), mind vision, haste, invisibility, levitation, purity.
+- Harmful potions when drunk: frost, liquid flame, toxic gas, paralytic gas. Once you know a harmful type, throw further copies at enemies instead of drinking.
+- Nearly half of unknown potions are harmful, so never drink an unknown potion at low HP or next to an enemy.
+- Scrolls: upgrade (use on armor), remove curse, magic mapping (shows the floor), mirror image, teleportation, terror (enemies flee), lullaby (everyone sleeps, bad near enemies), retribution (emergency only), transmutation, recharging.
+- On floors 1-4 about half of unknown scrolls are scrolls of upgrade: read unknown scrolls early.
+
+Hunger, food and healing
+- You get hungry after 300 turns without food and starve after 450. Starving slowly drains HP and stops natural healing.
+- Eat when the Hungry status appears, not earlier. A ration covers 300 turns.
+- Each ordinary floor holds one food item. Wasting turns means starving later.
+- Natural healing is 1 HP per 10 turns. Resting 100 turns restores 10 HP and costs a third of a ration.
+- Floor 1 has no new enemies arriving, so resting there is safe. Deeper, new enemies wander in while you rest.
+- Drink a healing potion when HP is at or below about 40% in a fight, or when poisoned or bleeding. Keep one for the boss.
+- Dewdrops heal a little when picked up.
+- Searching for hidden doors costs turns and food. Search only when the floor has nothing left to explore and the stairs down are not found.
+
+Talents
+- You get one talent point per level from level 2. Spend it at once: talent N.
+- Good order for the first five points: iron will, then provoked anger, then hearty meal.
+- From level 7: lethal momentum, then liquid willpower, then iron stomach.
+
+Priorities
+- Explore each floor fully and pick up everything before going down.
+- Fight at full HP when you can. Rest when HP is below half and no enemy is in sight.
+- Put all upgrades into armor, drink strength potions at once, spend talent points at once.
+- If food runs out, keep going down: starvation is slow.

@@ -1,0 +1,7 @@
+- Put every scroll of upgrade into the body armor you wear; do not split upgrades between items.
+- Drink a healing potion before HP gets critical. Eat when the Hungry status appears.
+- Unknown potions and scrolls are identified by using them: do it with full HP and no enemy in sight.
+- An enemy that has not noticed you: throw something at it, a hit on an unaware enemy never misses. Snakes dodge most ordinary hits.
+- Explore the whole floor and pick up items before going down. Rest when HP is below half and no enemy is near.
+- Equip a better weapon or armor only if your strength meets its requirement.
+- Spend talent points as soon as you get them.
